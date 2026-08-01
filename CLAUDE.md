@@ -16,7 +16,7 @@ manifest.json           ← PWA 配置
 js/
 ├── config.js           ← 常量：EXPENSE_CATEGORIES、INCOME_CATEGORIES、PRIORITY_MAP、STORAGE_KEY
 ├── utils.js            ← 纯函数：genId、today、fmtMoney、fmtDate、fmtDateShort、escapeHtml
-├── storage.js          ← 数据层：loadData、saveData、全局变量 `state`
+├── storage.js          ← 数据层：loadData、saveData、exportData、importData、全局变量 `state`
 ├── expense.js          ← 记账 CRUD：addExpense、deleteExpense、getMonthExpenses、getMonthSummary、getCategoryBreakdown
 ├── todo.js             ← 待办 CRUD：addTodo、toggleTodo、deleteTodo、getActiveTodos、getCompletedTodos、getActiveCount、isOverdue
 ├── templates.js        ← 快捷模板：getTemplates、addTemplate、deleteTemplate、recordFromTemplate
@@ -57,6 +57,58 @@ state = {
 | `pendingImage` | 暂存的截图 base64 |
 | `deferredPrompt` | PWA 安装事件对象 |
 
+## 关键工具函数签名
+
+| 函数 | 输入 | 输出 | 示例 |
+|------|------|------|------|
+| `today()` | — | `"2026-08-01"` | 当前日期 YYYY-MM-DD |
+| `fmtMoney(n)` | number | `"¥1,234.56"` | 金额格式化 |
+| `fmtDate(str)` | YYYY-MM-DD | `"今天"` / `"昨天"` / `"8月1日 周四"` | 账单列表用 |
+| `fmtDateShort(str)` | YYYY-MM-DD | `"8月1日"` / `"—"` | 待办列表用（短格式） |
+| `escapeHtml(str)` | string | escaped | XSS 防护 |
+| `genId()` | — | `"m2x...abc"` | 唯一 ID |
+
+## 渲染函数调用链
+
+```
+renderExpenseView()          ← 主入口，各自独立 try-catch
+  ├── renderSummary()        → #sumIncome, #sumExpense, #sumBalance
+  ├── renderTemplates()      → #templateList（含管理模式横幅）
+  ├── renderCategoryBreakdown() → #categoryBreakdown
+  ├── renderExpenseList()    → #expenseList（按日期分组）
+  └── updateHeaderMonth()    → #monthPicker 同步
+
+renderTodoView()
+  ├── renderActiveTodos()    → #activeTodoList
+  ├── renderCompletedTodos() → #completedTodoList
+  └── updateTodoBadge()      → #todoBadge
+```
+
+**重要**: 每个 render 函数都有独立 try-catch，一个失败不影响其他。
+
+## 事件委托模式
+
+```
+#expenseList click → [data-action] 路由到 batch-check / preview-img / delete-expense
+#templateList click → [data-action="record-tpl"] 路由到 record/delete
+#activeTodoList click → [data-action] 路由到 todo-batch-check / pin-todo / toggle-todo / delete-todo
+#completedTodoList click → [data-action] 同上 + completed-batch-check
+```
+
+模板列表的特殊处理：管理模式下点击模板→删除确认，普通模式→一键记账。
+
+## CSS 状态类约定
+
+| 类名 | 触发条件 | 效果 |
+|------|----------|------|
+| `.tpl-chip.managing` | `tplManaging === true` | 红色边框+背景+抖动动画，↗按钮可见 |
+| `.tpl-delete-btn` | 父级 `.managing` | 默认 `display:none`，管理模式 `display:flex` |
+| `.batch-checkbox.checked` | `batchSelected.has(id)` | 蓝色实心✓ |
+| `.todo-check.confirming` | `pendingConfirmId === id` | 橙色脉冲动画+「再点确认」提示 |
+| `.tab.active` | 当前标签页 | 蓝色底部边框 |
+| `.tpl-manage-banner` | `tplManaging === true` | 红色提示条（模板列表首个元素） |
+| `.overdue` | `deadline < today()` | 红色文字+粗体 |
+
 ## 调试指南
 
 | 症状 | 查哪个文件 |
@@ -85,3 +137,33 @@ state = {
 - 不要修改加载顺序
 - 不要给已有的全局函数改名（inline onclick 依赖它们）
 - 不要在 CSS 末尾追加样式后忘记检查是否有重复规则
+- 不要把多个 render 函数放在同一个 try-catch 里——一个子渲染失败会导致后续渲染全部跳过
+
+## 部署
+
+### 方式一：GitHub Pages（推荐，免费）
+
+1. 在 GitHub 创建**公开**仓库 `daily-tracker`
+2. `git push origin master`
+3. Settings → Pages → Source: `master` / `/(root)` → Save
+4. 访问 `https://<用户名>.github.io/daily-tracker/`
+5. 手机浏览器打开 → 菜单 →「添加到主屏幕」安装 PWA
+
+### 方式二：腾讯云 EdgeOne Pages（大陆更快，需域名）
+
+1. 控制台 → EdgeOne Pages → 上传文件
+2. 绑定自定义域名（选「全球不含中国大陆」免 ICP 备案）
+
+### 部署注意事项
+- 所有路径均为相对路径（`./js/...`），无需适配
+- Service Worker 采用网络优先策略，旧版本清理在 activate 事件中
+- 每台设备 localStorage 独立，互不影响
+- 跨设备迁移数据用「导出/导入」功能（左下角 ⋯ 菜单）
+
+## 数据导出/导入
+
+- `exportData()` — 序列化 `state` 为 JSON 文件下载（文件名含日期戳 `daily-tracker-backup-YYYY-MM-DD.json`）
+- `importData(jsonStr)` — 解析 JSON → 校验结构 → 替换 `state.expenses/todos/templates` → `saveData()` → 返回结果对象 `{ok, error?, counts?}`
+- 入口：左下角 ⋯ 菜单 → 💾 导出数据 / 📥 导入数据
+- 导入后自动调用 `renderExpenseView()` + `renderTodoView()` + `updateTodoBadge()` 刷新界面
+- 容错：导入文件缺少字段时自动补空数组，不丢已有数据的其他字段

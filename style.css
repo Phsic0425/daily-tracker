@@ -11,6 +11,10 @@
   --income-bg: #ECFDF5;
   --expense: #F43F5E;
   --expense-bg: #FFF1F2;
+  --danger: #EF4444;
+  --danger-bg: #FEF2F2;
+  --warning: #F59E0B;
+  --warning-bg: #FFFBEB;
   --bg: #F1F5F9;
   --card: #FFFFFF;
   --text: #0F172A;
@@ -233,7 +237,7 @@ input[type="date"] { min-width: 0; }
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 4px 0 8px;
+  padding: 8px 4px 10px;
   scroll-snap-type: x proximity;
   -webkit-overflow-scrolling: touch;
 }
@@ -254,6 +258,8 @@ input[type="date"] { min-width: 0; }
   transition: all var(--transition);
   scroll-snap-align: start;
   white-space: nowrap;
+  position: relative;
+  overflow: visible;
 }
 .tpl-chip:active { background: var(--primary-bg); border-color: var(--primary); transform: scale(0.95); }
 .tpl-chip .tpl-icon { font-size: 1.1rem; }
@@ -262,8 +268,8 @@ input[type="date"] { min-width: 0; }
 
 /* 管理模式 - 醒目的删除状态 */
 .tpl-chip.managing {
-  border-color: #EF4444;
-  background: #FEF2F2;
+  border-color: var(--danger);
+  background: var(--danger-bg);
   animation: shake 0.3s ease;
   padding-right: 8px;
 }
@@ -274,15 +280,17 @@ input[type="date"] { min-width: 0; }
 }
 .tpl-chip.managing .tpl-amount { display: none; }
 .tpl-delete-btn {
+  position: absolute;
+  top: 4px; right: 4px;
   width: 20px; height: 20px;
   border-radius: 50%;
-  background: #EF4444;
+  background: var(--danger);
   color: #fff;
   font-size: 0.65rem;
   display: none;
   align-items: center; justify-content: center;
-  margin-left: 2px;
-  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  z-index: 2;
 }
 .tpl-chip.managing .tpl-delete-btn { display: flex; }
 .tpl-chip.managing .tpl-icon { filter: grayscale(0.4); }
@@ -298,26 +306,6 @@ input[type="date"] { min-width: 0; }
   transition: all var(--transition);
 }
 .tpl-chip-add:active { border-color: var(--primary); color: var(--primary); }
-
-.tpl-delete-btn {
-  width: 18px; height: 18px;
-  border-radius: 50%;
-  background: var(--expense);
-  color: #fff;
-  font-size: 0.6rem;
-  display: none;
-  align-items: center; justify-content: center;
-  margin-left: -2px;
-}
-.tpl-chip.managing .tpl-delete-btn { display: flex; }
-.tpl-chip.managing { border-color: var(--expense); }
-
-.btn-tpl-manage {
-  color: var(--primary);
-  font-weight: 500;
-  padding: 4px 10px;
-  font-size: 0.78rem;
-}
 
 /* ----- 拍照按钮 ----- */
 .btn-camera {
@@ -571,8 +559,8 @@ input[type="date"] { min-width: 0; }
   border-radius: 50%;
   flex-shrink: 0;
 }
-.priority-dot.high { background: #EF4444; }
-.priority-dot.medium { background: #F59E0B; }
+.priority-dot.high { background: var(--danger); }
+.priority-dot.medium { background: var(--warning); }
 .priority-dot.low { background: #10B981; }
 
 .todo-delete {
@@ -827,9 +815,9 @@ input[type="date"] { min-width: 0; }
 
 /* 待办确认状态 */
 .todo-check.confirming {
-  border-color: #F59E0B;
-  background: #FFFBEB;
-  color: #F59E0B;
+  border-color: var(--warning);
+  background: var(--warning-bg);
+  color: var(--warning);
   animation: pulse 0.8s ease-in-out infinite;
   transform: scale(1.15);
 }
@@ -839,7 +827,7 @@ input[type="date"] { min-width: 0; }
 }
 .todo-confirm-hint {
   font-size: 0.7rem;
-  color: #F59E0B;
+  color: var(--warning);
   font-weight: 500;
   animation: fadeIn 0.2s ease;
   white-space: nowrap;
@@ -902,17 +890,21 @@ input[type="date"] { min-width: 0; }
   position: fixed;
   bottom: calc(20px + var(--safe-bottom));
   left: max(16px, calc((100vw - 480px) / 2 + 16px));
-  width: 44px; height: 44px;
-  border-radius: 50%;
+  height: 44px;
+  border-radius: 22px;
   background: var(--card);
   color: var(--text-secondary);
-  font-size: 1.3rem;
+  font-size: 0.85rem;
   box-shadow: var(--shadow);
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; gap: 4px;
+  padding: 0 16px;
   z-index: 22;
   transition: all var(--transition);
 }
 .btn-more:active { background: var(--primary-bg); color: var(--primary); }
+.btn-more { border: 1.5px solid var(--border); }
+.more-dots { font-size: 1.2rem; line-height: 1; }
+.more-label { font-size: 0.82rem; font-weight: 500; }
 
 .more-menu {
   position: fixed;
@@ -940,6 +932,14 @@ input[type="date"] { min-width: 0; }
 .more-item:active { background: var(--bg); }
 
 /* 报表 */
+.modal-title { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.btn-month-report {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--bg); color: var(--text-secondary);
+  font-size: 0.7rem; display: flex; align-items: center; justify-content: center;
+  transition: background var(--transition);
+}
+.btn-month-report:active { background: var(--primary-bg); }
 .report-content { font-size: 0.88rem; padding: 0 4px 16px; }
 .report-block { margin-bottom: 16px; }
 .report-block h4 { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 8px; }
@@ -978,6 +978,61 @@ input[type="date"] { min-width: 0; }
 }
 .btn-tpl-manage:active { background: var(--primary); color: #fff; }
 
+/* 模板管理模式提示条 */
+.tpl-manage-banner {
+  flex-shrink: 0;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px dashed var(--danger);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+  animation: fadeIn 0.25s ease;
+  scroll-snap-align: start;
+}
+
+/* 排序模式 */
+.sort-mode-group {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+  margin-right: 4px;
+}
+.sort-mode-btn {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent;
+  color: var(--text-muted);
+  transition: all var(--transition);
+}
+.sort-mode-btn.active {
+  background: var(--primary-bg);
+  color: var(--primary);
+}
+.sort-mode-btn:active { background: var(--primary-bg); }
+
+/* 置顶 */
+.todo-pin {
+  width: 24px; height: 24px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0.35;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.todo-item:hover .todo-pin,
+.todo-item:active .todo-pin { opacity: 0.7; }
+.todo-pin.pinned { opacity: 1; background: var(--primary-bg); }
+.todo-item.pinned {
+  border-left: 3px solid var(--primary);
+  background: var(--primary-bg);
+}
+
 /* 批量删除 */
 .btn-batch-del {
   color: var(--expense);
@@ -996,7 +1051,7 @@ input[type="date"] { min-width: 0; }
   box-shadow: var(--shadow);
 }
 .batch-count { font-size: 0.78rem; color: var(--text-secondary); margin-left: auto; }
-.expense-item .batch-checkbox {
+.batch-checkbox {
   width: 22px; height: 22px;
   border-radius: 4px;
   border: 2px solid var(--border);
@@ -1005,8 +1060,9 @@ input[type="date"] { min-width: 0; }
   font-size: 0.75rem;
   color: transparent;
   transition: all var(--transition);
+  cursor: pointer;
 }
-.expense-item .batch-checkbox.checked {
+.batch-checkbox.checked {
   background: var(--primary);
   border-color: var(--primary);
   color: #fff;
@@ -1038,6 +1094,8 @@ input[type="date"] { min-width: 0; }
     --primary-bg: #1E1B4B;
     --income-bg: #022C22;
     --expense-bg: #2D1215;
+    --danger-bg: #2D1215;
+    --warning-bg: #2D1A05;
   }
   .header { box-shadow: 0 2px 8px rgba(0,0,0,.4); }
   .amount-input { color: var(--text); }

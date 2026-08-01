@@ -8,7 +8,7 @@ function showToast(msg) {
   toast.textContent = msg;
   toast.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
 }
 
 function triggerConfetti(el) {

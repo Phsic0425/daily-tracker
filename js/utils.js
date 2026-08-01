@@ -15,15 +15,20 @@ function fmtMoney(n) {
 }
 
 function fmtDate(dateStr) {
-  const d = new Date(dateStr + 'T00:00:00');
+  if (!dateStr) return '—';
+  // 尝试解析，YYYY-MM-DD 格式
+  const match = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return '—';
+  const d = new Date(match[0] + 'T00:00:00');
+  if (isNaN(d.getTime())) return '—';
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = yesterday.toISOString().slice(0, 10);
 
-  if (dateStr === todayStr) return '今天';
-  if (dateStr === yesterdayStr) return '昨天';
+  if (dateStr.slice(0, 10) === todayStr) return '今天';
+  if (dateStr.slice(0, 10) === yesterdayStr) return '昨天';
 
   const m = d.getMonth() + 1;
   const day = d.getDate();
@@ -33,8 +38,17 @@ function fmtDate(dateStr) {
 }
 
 function fmtDateShort(dateStr) {
-  const parts = dateStr.split('-');
-  return `${parseInt(parts[1])}/${parseInt(parts[2])}`;
+  if (!dateStr) return '—';
+  try {
+    // 只取前10个字符 YYYY-MM-DD，防止带时间戳的字符串
+    const clean = dateStr.slice(0, 10);
+    const parts = clean.split('-');
+    if (parts.length < 3) return '—';
+    const m = parseInt(parts[1]);
+    const d = parseInt(parts[2]);
+    if (isNaN(m) || isNaN(d) || m < 1 || m > 12 || d < 1 || d > 31) return '—';
+    return `${m}月${d}日`;
+  } catch(e) { return '—'; }
 }
 
 function escapeHtml(str) {

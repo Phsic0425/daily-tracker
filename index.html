@@ -17,7 +17,7 @@
     <!-- 顶部 -->
     <header class="header">
       <div class="header-left">
-        <h1 class="header-title">📒 日常记账</h1>
+        <h1 class="header-title">📒 日常记账 <span style="font-size:0.6rem;opacity:0.6;font-weight:400">v6</span></h1>
       </div>
       <div class="header-right">
         <button class="btn-month" id="btnPrevMonth" title="上月">◀</button>
@@ -121,6 +121,16 @@
           <div class="section-header">
             <span>📌 进行中</span>
             <span class="section-count" id="activeCount">0</span>
+            <div class="sort-mode-group">
+              <button class="sort-mode-btn active" data-sort="deadline" title="按截止日期排序">📅</button>
+              <button class="sort-mode-btn" data-sort="priority" title="按优先级排序">🔴</button>
+            </div>
+            <button class="btn btn-sm btn-batch-del" id="btnTodoBatchDel" onclick="toggleTodoBatchDelete()">批量删除</button>
+          </div>
+          <div class="batch-actions" id="todoBatchActions" style="display:none">
+            <button class="btn btn-sm btn-primary" id="btnTodoSelectAll">全选</button>
+            <button class="btn btn-sm" id="btnTodoDeleteSelected" style="background:#F43F5E;color:#fff">删除选中</button>
+            <span class="batch-count" id="todoBatchCount">已选 0 条</span>
           </div>
           <div class="todo-list" id="activeTodoList">
             <p class="empty-hint">没有待办，添加一个吧</p>
@@ -132,7 +142,13 @@
           <div class="section-header collapsible" id="completedHeader">
             <span>✅ 已完成</span>
             <span class="section-count" id="completedCount">0</span>
+            <button class="btn btn-sm btn-batch-del" id="btnCompletedBatchDel" onclick="toggleCompletedBatchDelete()">批量删除</button>
             <span class="collapse-arrow">▼</span>
+          </div>
+          <div class="batch-actions" id="completedBatchActions" style="display:none">
+            <button class="btn btn-sm btn-primary" id="btnCompletedSelectAll">全选</button>
+            <button class="btn btn-sm" id="btnCompletedDeleteSelected" style="background:#F43F5E;color:#fff">删除选中</button>
+            <span class="batch-count" id="completedBatchCount">已选 0 条</span>
           </div>
           <div class="todo-list" id="completedTodoList"></div>
         </div>
@@ -198,17 +214,29 @@
     </div>
 
     <!-- 更多菜单按钮 -->
-    <button class="btn-more" id="btnMore" title="更多">⋯</button>
+    <button class="btn-more" id="btnMore" title="更多">
+      <span class="more-dots">⋯</span>
+      <span class="more-label">更多</span>
+    </button>
     <div class="more-menu" id="moreMenu" style="display:none">
       <button class="more-item" id="btnShowReport">📊 报表</button>
+      <button class="more-item" id="btnExportData">💾 导出数据</button>
+      <button class="more-item" id="btnImportData">📥 导入数据</button>
       <button class="more-item" id="btnInstallEntry">📱 安装应用</button>
     </div>
+    <input type="file" id="importFileInput" accept=".json" style="display:none">
 
     <!-- 报表弹窗 -->
     <div class="overlay" id="reportOverlay"></div>
     <div class="modal" id="reportModal">
       <div class="modal-handle"></div>
-      <h3 class="modal-title">📊 财务报告</h3>
+      <h3 class="modal-title">
+        <button class="btn-month-report" id="btnReportPrevYear" title="上年">◀◀</button>
+        <button class="btn-month-report" id="btnReportPrev">◀</button>
+        <span id="reportTitle">📊 财务报告</span>
+        <button class="btn-month-report" id="btnReportNext">▶</button>
+        <button class="btn-month-report" id="btnReportNextYear" title="下年">▶▶</button>
+      </h3>
       <div class="report-content" id="reportContent"></div>
       <button class="btn btn-ghost btn-block" id="btnCloseReport">关闭</button>
     </div>

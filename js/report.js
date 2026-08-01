@@ -3,6 +3,8 @@
    ============================================ */
 
 function openReport() {
+  reportYear = viewMonth.year;
+  reportMonth = viewMonth.month;
   const modal = document.getElementById('reportModal');
   const overlay = document.getElementById('reportOverlay');
   modal.classList.add('show');
@@ -19,9 +21,11 @@ function closeReport() {
 
 function renderReport() {
   const container = document.getElementById('reportContent');
-  const year = viewMonth.year;
-  const month = viewMonth.month;
+  const year = reportYear;
+  const month = reportMonth;
   const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+  document.getElementById('reportTitle').textContent = `📊 ${year}年${months[month-1]} 报告`;
 
   const monSum = getMonthSummary(year, month);
 

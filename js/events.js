@@ -16,24 +16,45 @@ function setupEvents() {
     });
   });
 
+  // ---- 待办排序模式切换 ----
+  document.querySelectorAll('.sort-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      todoSortMode = btn.dataset.sort;
+      renderActiveTodos();
+    });
+  });
+
   // ---- 月份导航 ----
   document.getElementById('btnPrevMonth').addEventListener('click', () => {
     viewMonth.month--;
     if (viewMonth.month === 0) { viewMonth.month = 12; viewMonth.year--; }
-    renderExpenseView();
+    try { renderExpenseView(); } catch(e) { console.error(e); }
   });
   document.getElementById('btnNextMonth').addEventListener('click', () => {
     viewMonth.month++;
     if (viewMonth.month === 13) { viewMonth.month = 1; viewMonth.year++; }
-    renderExpenseView();
+    try { renderExpenseView(); } catch(e) { console.error(e); }
   });
-  document.getElementById('monthPicker').addEventListener('change', (e) => {
-    if (!e.target.value) return;
-    const [y, m] = e.target.value.split('-');
-    viewMonth.year = parseInt(y);
-    viewMonth.month = parseInt(m);
-    renderExpenseView();
-  });
+  const monthPicker = document.getElementById('monthPicker');
+  let _applyingMonth = false; // 防重入
+  function applyMonthChange() {
+    if (_applyingMonth) return;
+    const val = monthPicker.value;
+    if (!val) return;
+    const [y, m] = val.split('-');
+    const ny = parseInt(y), nm = parseInt(m);
+    if (ny === viewMonth.year && nm === viewMonth.month) return; // 没变化
+    _applyingMonth = true;
+    viewMonth.year = ny;
+    viewMonth.month = nm;
+    try { renderExpenseView(); } catch(e) { console.error(e); }
+    _applyingMonth = false;
+  }
+  monthPicker.addEventListener('change', applyMonthChange);
+  // 移动端只监听 change，避免 blur+change 双重触发
+  if (!('ontouchstart' in window)) {
+    monthPicker.addEventListener('blur', applyMonthChange);
+  }
 
   // ---- FAB ----
   document.getElementById('fabAdd').addEventListener('click', () => {
@@ -150,6 +171,49 @@ function setupEvents() {
     if (tpl) recordFromTemplate(tpl);
   });
 
+  // ---- 待办批量删除操作 ----
+  document.getElementById('btnTodoSelectAll').addEventListener('click', () => {
+    const list = getActiveTodos(todoSortMode);
+    if (todoBatchSelected.size === list.length) { todoBatchSelected.clear(); }
+    else { list.forEach(t => todoBatchSelected.add(t.id)); }
+    renderActiveTodos();
+    document.getElementById('todoBatchCount').textContent = `已选 ${todoBatchSelected.size} 条`;
+  });
+  document.getElementById('btnTodoDeleteSelected').addEventListener('click', () => {
+    if (todoBatchSelected.size === 0) { showToast('请先选择要删除的待办'); return; }
+    if (!confirm(`确定要删除选中的 ${todoBatchSelected.size} 条待办吗？此操作不可恢复。`)) return;
+    const delCount = todoBatchSelected.size;
+    todoBatchSelected.forEach(id => deleteTodo(id));
+    todoBatchSelected.clear();
+    showToast(`已删除 ${delCount} 条`);
+    todoBatchDeleting = false;
+    document.getElementById('todoBatchActions').style.display = 'none';
+    document.getElementById('btnTodoBatchDel').textContent = '批量删除';
+    renderTodoView();
+  });
+
+  // ---- 已完成待办批量删除操作 ----
+  document.getElementById('btnCompletedSelectAll').addEventListener('click', () => {
+    const list = getCompletedTodos();
+    if (completedBatchSelected.size === list.length) { completedBatchSelected.clear(); }
+    else { list.forEach(t => completedBatchSelected.add(t.id)); }
+    renderCompletedTodos();
+    document.getElementById('completedBatchCount').textContent = `已选 ${completedBatchSelected.size} 条`;
+  });
+  document.getElementById('btnCompletedDeleteSelected').addEventListener('click', () => {
+    if (completedBatchSelected.size === 0) { showToast('请先选择要删除的已完成待办'); return; }
+    if (!confirm(`确定要删除选中的 ${completedBatchSelected.size} 条已完成待办吗？此操作不可恢复。`)) return;
+    const delCount = completedBatchSelected.size;
+    completedBatchSelected.forEach(id => deleteTodo(id));
+    completedBatchSelected.clear();
+    showToast(`已删除 ${delCount} 条`);
+    completedBatchDeleting = false;
+    document.getElementById('completedBatchActions').style.display = 'none';
+    document.getElementById('btnCompletedBatchDel').textContent = '批量删除';
+    renderCompletedTodos();
+    updateTodoBadge();
+  });
+
   // ---- 待办表单 ----
   document.getElementById('todoForm').addEventListener('submit', e => {
     e.preventDefault();
@@ -163,14 +227,29 @@ function setupEvents() {
     addTodo({ title, startDate, deadline, priority });
     document.getElementById('todoTitle').value = '';
     document.getElementById('todoStartDate').value = '';
-    document.getElementById('todoDeadline').value = '';
+    document.getElementById('todoDeadline').value = today(); // 重置为当天
     document.getElementById('todoTitle').focus();
     showToast('待办已添加 ✓');
     renderTodoView();
   });
 
-  // ---- 待办列表（双击确认完成）----
+  // ---- 待办列表（双击确认完成 / 批量勾选）----
   document.getElementById('activeTodoList').addEventListener('click', e => {
+    // 批量勾选
+    const batchCheck = e.target.closest('[data-action="todo-batch-check"]');
+    if (batchCheck) {
+      const id = batchCheck.dataset.id;
+      if (todoBatchSelected.has(id)) { todoBatchSelected.delete(id); batchCheck.classList.remove('checked'); }
+      else { todoBatchSelected.add(id); batchCheck.classList.add('checked'); }
+      document.getElementById('todoBatchCount').textContent = `已选 ${todoBatchSelected.size} 条`;
+      return;
+    }
+    const pinBtn = e.target.closest('[data-action="pin-todo"]');
+    if (pinBtn) {
+      togglePinTodo(pinBtn.dataset.id);
+      renderActiveTodos();
+      return;
+    }
     const checkBtn = e.target.closest('[data-action="toggle-todo"]');
     if (checkBtn) {
       const id = checkBtn.dataset.id;
@@ -204,6 +283,15 @@ function setupEvents() {
 
   // ---- 已完成列表 ----
   document.getElementById('completedTodoList').addEventListener('click', e => {
+    // 批量勾选
+    const batchCheck = e.target.closest('[data-action="completed-batch-check"]');
+    if (batchCheck) {
+      const id = batchCheck.dataset.id;
+      if (completedBatchSelected.has(id)) { completedBatchSelected.delete(id); batchCheck.classList.remove('checked'); }
+      else { completedBatchSelected.add(id); batchCheck.classList.add('checked'); }
+      document.getElementById('completedBatchCount').textContent = `已选 ${completedBatchSelected.size} 条`;
+      return;
+    }
     const checkBtn = e.target.closest('[data-action="toggle-todo"]');
     if (checkBtn) { clearPendingConfirm(); toggleTodo(checkBtn.dataset.id); showToast('已恢复'); renderTodoView(); return; }
     const delBtn = e.target.closest('[data-action="delete-todo"]');
@@ -212,7 +300,9 @@ function setupEvents() {
       if (confirm('确定要删除这个待办吗？')) { deleteTodo(delBtn.dataset.id); showToast('已删除'); renderTodoView(); }
     }
   });
-  document.getElementById('completedHeader').addEventListener('click', () => {
+  document.getElementById('completedHeader').addEventListener('click', (e) => {
+    // 不拦截按钮点击（批量删除等）
+    if (e.target.closest('button')) return;
     completedCollapsed = !completedCollapsed;
     document.querySelector('.collapse-arrow').classList.toggle('collapsed', completedCollapsed);
     renderCompletedTodos();
@@ -232,6 +322,24 @@ function setupEvents() {
   });
   document.getElementById('btnCloseReport').addEventListener('click', closeReport);
   document.getElementById('reportOverlay').addEventListener('click', closeReport);
+  document.getElementById('btnReportPrev').addEventListener('click', () => {
+    reportMonth--;
+    if (reportMonth === 0) { reportMonth = 12; reportYear--; }
+    renderReport();
+  });
+  document.getElementById('btnReportNext').addEventListener('click', () => {
+    reportMonth++;
+    if (reportMonth === 13) { reportMonth = 1; reportYear++; }
+    renderReport();
+  });
+  document.getElementById('btnReportPrevYear').addEventListener('click', () => {
+    reportYear--;
+    renderReport();
+  });
+  document.getElementById('btnReportNextYear').addEventListener('click', () => {
+    reportYear++;
+    renderReport();
+  });
 
   // ---- PWA 安装 ----
   const banner = document.getElementById('installBanner');
@@ -258,5 +366,36 @@ function setupEvents() {
   document.getElementById('btnInstallEntry').addEventListener('click', doInstall);
   document.getElementById('btnDismissInstall').addEventListener('click', (e) => {
     e.stopPropagation(); banner.style.display = 'none'; localStorage.setItem('install_banner_dismissed', '1');
+  });
+
+  // ---- 数据导出/导入 ----
+  document.getElementById('btnExportData').addEventListener('click', (e) => {
+    e.stopPropagation();
+    exportData();
+    showToast('💾 数据已导出');
+    moreMenu.style.display = 'none';
+  });
+  document.getElementById('btnImportData').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('importFileInput').click();
+    moreMenu.style.display = 'none';
+  });
+  document.getElementById('importFileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = importData(reader.result);
+      if (result.ok) {
+        showToast(`📥 已导入：${result.counts.expenses} 条账单、${result.counts.todos} 条待办、${result.counts.templates} 个模板`);
+        renderExpenseView();
+        renderTodoView();
+        updateTodoBadge();
+      } else {
+        showToast('❌ ' + result.error);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   });
 }

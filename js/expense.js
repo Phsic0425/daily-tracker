@@ -23,7 +23,7 @@ function deleteExpense(id) {
 
 function getMonthExpenses(year, month) {
   const prefix = `${year}-${String(month).padStart(2, '0')}`;
-  return state.expenses.filter(e => e.date.startsWith(prefix));
+  return state.expenses.filter(e => e.date && e.date.startsWith(prefix));
 }
 
 function getMonthSummary(year, month) {
