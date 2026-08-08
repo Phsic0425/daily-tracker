@@ -351,14 +351,11 @@
     <div class="more-menu" id="moreMenu" style="display:none">
       <button class="more-item" id="btnShowReport">📊 报表</button>
       <button class="more-item" id="btnShowSettings">⚙️ 设置</button>
-      <button class="more-item" id="btnExportData">💾 导出 JSON</button>
-      <button class="more-item" id="btnImportData">📥 导入 JSON</button>
       <button class="more-item" id="btnCopySync">📋 复制同步码</button>
       <button class="more-item" id="btnPasteSync">📌 粘贴同步码</button>
+      <button class="more-item" id="btnShowHelp">📖 使用说明</button>
       <button class="more-item" id="btnInstallEntry">📱 安装应用</button>
     </div>
-    <input type="file" id="importFileInput" accept=".json" style="display:none">
-
     <!-- 报表弹窗（全屏） -->
     <div class="modal-fullscreen" id="reportModal">
       <div class="report-header">
@@ -370,6 +367,15 @@
         <button class="btn-report-close" id="btnCloseReport">✕</button>
       </div>
       <div class="report-content" id="reportContent"></div>
+    </div>
+
+    <!-- 说明书弹窗 -->
+    <div class="overlay" id="helpOverlay"></div>
+    <div class="modal" id="helpModal" style="max-height:90dvh;overflow-y:auto">
+      <div class="modal-handle"></div>
+      <h3 class="modal-title">📖 使用说明</h3>
+      <div class="help-content" id="helpContent"></div>
+      <button class="btn btn-ghost btn-block" id="btnCloseHelp">关闭</button>
     </div>
 
     <!-- 设置弹窗 -->
@@ -394,6 +400,7 @@
   <script src="js/calendar.js"></script>
   <script src="js/templates.js"></script>
   <script src="js/effects.js"></script>
+  <script src="js/help.js"></script>
   <script src="js/report.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/events.js"></script>

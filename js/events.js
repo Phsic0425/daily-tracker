@@ -105,7 +105,8 @@ function setupEvents() {
   document.getElementById('overlay').addEventListener('click', closeExpenseModal);
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
-      if (document.getElementById('scheduleModal').classList.contains('show')) closeScheduleModal();
+      if (document.getElementById('helpModal').classList.contains('show')) closeHelp();
+      else if (document.getElementById('scheduleModal').classList.contains('show')) closeScheduleModal();
       else closeExpenseModal();
     }
   });
@@ -499,6 +500,24 @@ function setupEvents() {
       if (hint) hint.textContent = e.target.checked ? '升序' : '倒序';
     }
   });
+  // 立即同步
+  document.getElementById('settingsContent').addEventListener('click', e => {
+    if (e.target.id === 'btnSyncNow') {
+      var statusEl = document.getElementById('syncStatus');
+      if (!settings.gistToken) { statusEl.textContent = '请先填写 GitHub Token'; return; }
+      statusEl.textContent = '同步中...';
+      syncDownload().then(function() {
+        statusEl.textContent = '✅ 同步完成 ' + new Date().toLocaleTimeString();
+        syncUpload().then(function() {
+          setTimeout(function() { statusEl.textContent = ''; }, 3000);
+        });
+      }).catch(function() {
+        statusEl.textContent = '❌ 同步失败，检查 Token';
+      });
+      return;
+    }
+  });
+
   // 分类管理事件
   document.getElementById('settingsContent').addEventListener('click', e => {
     // 删除分类
@@ -552,18 +571,14 @@ function setupEvents() {
     }
   });
 
-  // ---- 数据导出/导入 ----
-  document.getElementById('btnExportData').addEventListener('click', (e) => {
+  // ---- 说明书 ----
+  document.getElementById('btnShowHelp').addEventListener('click', (e) => {
     e.stopPropagation();
-    exportData();
-    showToast('💾 数据已导出');
+    openHelp();
     moreMenu.style.display = 'none';
   });
-  document.getElementById('btnImportData').addEventListener('click', (e) => {
-    e.stopPropagation();
-    document.getElementById('importFileInput').click();
-    moreMenu.style.display = 'none';
-  });
+  document.getElementById('btnCloseHelp').addEventListener('click', closeHelp);
+  document.getElementById('helpOverlay').addEventListener('click', closeHelp);
   // 复制同步码
   document.getElementById('btnCopySync').addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -601,26 +616,6 @@ function setupEvents() {
       showToast('❌ ' + result.error);
     }
   });
-  document.getElementById('importFileInput').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = importData(reader.result);
-      if (result.ok) {
-        showToast('📥 已导入：' + result.counts.expenses + '账单 ' + result.counts.todos + '待办 ' + result.counts.schedules + '日程');
-        renderExpenseView();
-        renderTodoView();
-        updateTodoBadge();
-        if (typeof renderScheduleView === 'function') renderScheduleView();
-      } else {
-        showToast('❌ ' + result.error);
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  });
-
   // ========== 日程事件 ==========
 
   // ---- 日历月份导航 ----

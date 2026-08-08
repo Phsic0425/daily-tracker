@@ -501,6 +501,44 @@ function renderSettings() {
       </div>
     </div>
 
+    <!-- ====== ☁️ 同步 ====== -->
+    <div class="setting-block" id="settingBlockSync">
+      <div class="setting-block-title">☁️ 云同步</div>
+      <div class="setting-desc" style="padding:0 4px 8px;font-size:0.75rem;color:var(--text-muted)">
+        使用 GitHub Gist 作为免费云存储，实现手机与电脑数据实时同步。<br>
+        需要创建 <a href="https://github.com/settings/tokens/new?scopes=gist&description=daily-tracker" target="_blank" style="color:var(--primary)">GitHub Token</a>（仅勾选 gist 权限）。
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          <span>启用云同步</span>
+          <span class="setting-desc">自动上传+定时下载</span>
+        </div>
+        <label class="switch-label">
+          <input type="checkbox" id="settingSyncEnabled" ${settings.syncEnabled ? 'checked' : ''}>
+          <span class="switch-track"></span>
+        </label>
+      </div>
+      <div class="setting-item">
+        <div class="setting-label">
+          <span>GitHub Token</span>
+          <span class="setting-desc">仅需 gist 权限，不碰代码仓库</span>
+        </div>
+        <input type="password" class="input" id="settingGistToken" value="${settings.gistToken || ''}" placeholder="ghp_xxxxxxxx" style="width:180px;flex:none">
+      </div>
+      <div class="setting-item">
+        <div class="setting-label">
+          <span>同步间隔（秒）</span>
+          <span class="setting-desc">建议 60 秒</span>
+        </div>
+        <input type="number" class="setting-num" id="settingSyncInterval" value="${settings.syncInterval || 60}" min="10" max="3600" step="10">
+      </div>
+      <div class="setting-item" style="justify-content:flex-start;gap:8px">
+        <button class="btn btn-sm btn-primary" id="btnSyncNow">🔄 立即同步</button>
+        <span style="font-size:0.72rem;color:var(--text-muted)" id="syncStatus"></span>
+      </div>
+    </div>
+
     <!-- ====== 📅 日程 ====== -->
     <div class="setting-block" id="settingBlockCalendar">
       <div class="setting-block-title">📅 日程</div>
@@ -572,7 +610,13 @@ function handleSaveSettings() {
   settings.showHolidays = document.getElementById('settingShowHolidays').checked;
   settings.showScheduleLabels = document.getElementById('settingShowScheduleLabels').checked;
   settings.compactSchedule = document.getElementById('settingCompactSchedule').checked;
+  // 同步设置
+  settings.syncEnabled = document.getElementById('settingSyncEnabled').checked;
+  settings.gistToken = document.getElementById('settingGistToken').value.trim();
+  settings.syncInterval = parseInt(document.getElementById('settingSyncInterval').value) || 60;
   saveSettings(settings);
+  // 应用同步
+  if (typeof initSync === 'function') initSync();
   // 应用排序
   todoSortAsc = settings.sortAsc;
   todoSortMode = settings.defaultSortMode;

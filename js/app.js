@@ -96,6 +96,9 @@ function init() {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
+  // 云同步初始化
+  if (typeof initSync === 'function') initSync();
+
   // 请求通知权限
   requestNotificationPermission();
 

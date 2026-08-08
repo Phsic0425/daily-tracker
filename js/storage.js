@@ -57,6 +57,10 @@ const DEFAULT_SETTINGS = {
   showHolidays: true,        // 日历显示节假日
   showScheduleLabels: true,  // 日历格显示日程文字（关=仅圆点）
   compactSchedule: false,    // 简洁日程：每格最多1条文字
+  gistToken: '',             // GitHub token（仅 gist 权限）
+  gistId: '',                // Gist ID
+  syncEnabled: false,        // 是否启用自动同步
+  syncInterval: 60,          // 同步间隔（秒）
 };
 
 function loadSettings() {
@@ -78,6 +82,164 @@ function saveSettings(s) {
 }
 
 let settings = loadSettings();
+
+// ====== GitHub Gist 云同步 ======
+
+var _syncTimer = null;
+var _syncing = false;
+var _lastSyncHash = '';
+
+function getSyncData() {
+  return JSON.stringify({
+    expenses: state.expenses,
+    todos: state.todos,
+    templates: state.templates,
+    schedules: state.schedules,
+  });
+}
+
+function dataHash() {
+  var s = getSyncData();
+  // 简单哈希
+  var h = 0;
+  for (var i = 0; i < s.length; i++) {
+    h = ((h << 5) - h) + s.charCodeAt(i);
+    h |= 0;
+  }
+  return String(h);
+}
+
+/** 上传数据到 Gist */
+async function syncUpload() {
+  if (!settings.syncEnabled || !settings.gistToken || _syncing) return;
+  var gistId = settings.gistId;
+  var content = getSyncData();
+  var hash = dataHash();
+  if (hash === _lastSyncHash) return; // 没变化，跳过
+
+  _syncing = true;
+  try {
+    var method, url;
+    if (gistId) {
+      method = 'PATCH';
+      url = 'https://api.github.com/gists/' + gistId;
+    } else {
+      method = 'POST';
+      url = 'https://api.github.com/gists';
+    }
+
+    var resp = await fetch(url, {
+      method: method,
+      headers: {
+        'Authorization': 'token ' + settings.gistToken,
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github.v3+json',
+      },
+      body: JSON.stringify({
+        description: '日常记账 数据',
+        public: false,
+        files: { 'daily-tracker.json': { content: content } }
+      }),
+    });
+
+    if (resp.ok) {
+      var data = await resp.json();
+      if (!gistId) {
+        settings.gistId = data.id;
+        saveSettings(settings);
+      }
+      _lastSyncHash = hash;
+      console.log('☁️ 同步上传成功');
+    } else if (resp.status === 401) {
+      showToast('⚠️ GitHub Token 无效，请检查设置');
+    }
+  } catch(e) {
+    console.error('同步上传失败:', e);
+  }
+  _syncing = false;
+}
+
+/** 从 Gist 下载数据 */
+async function syncDownload() {
+  if (!settings.syncEnabled || !settings.gistToken || !settings.gistId || _syncing) return;
+
+  _syncing = true;
+  try {
+    var resp = await fetch('https://api.github.com/gists/' + settings.gistId, {
+      headers: {
+        'Authorization': 'token ' + settings.gistToken,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+
+    if (resp.ok) {
+      var data = await resp.json();
+      var file = data.files && data.files['daily-tracker.json'];
+      if (file && file.content) {
+        var remoteHash = simpleHash(file.content);
+        if (remoteHash === _lastSyncHash) { _syncing = false; return; }
+
+        var parsed = JSON.parse(file.content);
+        if (parsed) {
+          if (Array.isArray(parsed.expenses)) state.expenses = parsed.expenses;
+          if (Array.isArray(parsed.todos)) state.todos = parsed.todos;
+          if (Array.isArray(parsed.templates)) state.templates = parsed.templates;
+          if (Array.isArray(parsed.schedules)) state.schedules = parsed.schedules;
+          saveData(state);
+          _lastSyncHash = remoteHash;
+          console.log('☁️ 同步下载成功');
+          // 刷新 UI
+          renderExpenseView();
+          renderTodoView();
+          updateTodoBadge();
+          if (typeof renderScheduleView === 'function') renderScheduleView();
+        }
+      }
+    }
+  } catch(e) {
+    console.error('同步下载失败:', e);
+  }
+  _syncing = false;
+}
+
+function simpleHash(s) {
+  var h = 0;
+  for (var i = 0; i < s.length; i++) {
+    h = ((h << 5) - h) + s.charCodeAt(i);
+    h |= 0;
+  }
+  return String(h);
+}
+
+/** 启动定时同步 */
+function startSyncTimer() {
+  stopSyncTimer();
+  if (!settings.syncEnabled || !settings.gistToken || !settings.gistId) return;
+  var interval = (settings.syncInterval || 60) * 1000;
+  _syncTimer = setInterval(function() {
+    syncDownload();
+  }, interval);
+  // 首次立即同步
+  syncDownload();
+}
+
+function stopSyncTimer() {
+  if (_syncTimer) { clearInterval(_syncTimer); _syncTimer = null; }
+}
+
+/** 初始化同步 */
+function initSync() {
+  if (settings.syncEnabled && settings.gistToken && settings.gistId) {
+    startSyncTimer();
+  }
+}
+
+// 重写 saveData，每次保存时自动上传
+var _originalSaveData = saveData;
+saveData = function(data) {
+  _originalSaveData(data);
+  syncUpload();
+};
 
 // ---- 同步码（跨设备） ----
 
