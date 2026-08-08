@@ -1,7 +1,7 @@
 {
-  "name": "日常记账 - 记账与待办",
+  "name": "日常记账 - 记账/待办/日程",
   "short_name": "日常记账",
-  "description": "个人日常记账与待办事项管理",
+  "description": "个人日常记账、待办事项与日程管理",
   "start_url": ".",
   "display": "standalone",
   "orientation": "portrait",

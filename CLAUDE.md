@@ -16,9 +16,9 @@ manifest.json           ← PWA 配置
 js/
 ├── config.js           ← 常量：EXPENSE_CATEGORIES、INCOME_CATEGORIES、PRIORITY_MAP、STORAGE_KEY
 ├── utils.js            ← 纯函数：genId、today、fmtMoney、fmtDate、fmtDateShort、escapeHtml
-├── storage.js          ← 数据层：loadData、saveData、exportData、importData、全局变量 `state`
+├── storage.js          ← 数据层：loadData、saveData、exportData、importData、loadSettings、saveSettings、全局变量 `state` + `settings`
 ├── expense.js          ← 记账 CRUD：addExpense、deleteExpense、getMonthExpenses、getMonthSummary、getCategoryBreakdown
-├── todo.js             ← 待办 CRUD：addTodo、toggleTodo、deleteTodo、getActiveTodos、getCompletedTodos、getActiveCount、isOverdue
+├── todo.js             ← 待办 CRUD + 排序：addTodo、toggleTodo、deleteTodo、getActiveTodos、getCompletedTodos、getActiveCount、isOverdue、isDueSoon
 ├── templates.js        ← 快捷模板：getTemplates、addTemplate、deleteTemplate、recordFromTemplate
 ├── effects.js          ← 视觉：showToast、triggerConfetti、updateCameraButton、handleImageSelect、showImagePreview、clearPendingConfirm
 ├── report.js           ← 报表：openReport、closeReport、renderReport（独立年月变量 reportYear/reportMonth）
@@ -38,10 +38,18 @@ config → utils → storage → expense → todo → templates → effects → 
 ```js
 state = {
   expenses: [{ id, type, amount, category, note, date, image, createdAt }],
-  todos:    [{ id, title, startDate, deadline, priority, completed, completedAt, createdAt }],
+  todos:    [{ id, title, deadline, priority, note, pinned, order, completed, completedAt, createdAt }],
   templates:[{ id, name, type, category, amount, note }]
 }
 // 存于 localStorage key: 'daily_tracker_data'
+
+settings = {
+  dueSoonDays: 3,        // 距截止几天算临期（1-30）
+  showTimeStatus: true,  // 待办是否显示临期/超时边框
+  defaultSortMode: 'deadline', // 'deadline' | 'priority' | 'status'
+  sortAsc: true,         // true=升序(早→晚)
+}
+// 存于 localStorage key: 'daily_tracker_settings'
 ```
 
 ## 全局状态变量（app.js）
@@ -106,8 +114,13 @@ renderTodoView()
 | `.batch-checkbox.checked` | `batchSelected.has(id)` | 蓝色实心✓ |
 | `.todo-check.confirming` | `pendingConfirmId === id` | 橙色脉冲动画+「再点确认」提示 |
 | `.tab.active` | 当前标签页 | 蓝色底部边框 |
-| `.tpl-manage-banner` | `tplManaging === true` | 红色提示条（模板列表首个元素） |
-| `.overdue` | `deadline < today()` | 红色文字+粗体 |
+| `.tpl-manage-banner` | `tplManaging === true` | 红色提示条（模板列表首个元素，持续显示） |
+| `.todo-item.overdue` | `deadline < today()` | 红色左边框 |
+| `.todo-item.due-soon` | `today() ≤ deadline ≤ today()+dueSoonDays` | 黄色左边框 |
+| `.todo-note` | todo 有备注 | 灰色小字，标题下方 |
+| `.modal-fullscreen` | 报表打开 | 全屏模态，从底部滑入 |
+| `.report-chart` | 报表渲染后 | Canvas 图表容器 |
+| `.cat-tag` / `.cat-tag-del` | 设置中分类管理 | 分类标签 + 删除按钮 |
 
 ## 调试指南
 
@@ -124,12 +137,21 @@ renderTodoView()
 ## UX 要点
 
 - 待办完成需**双击确认**：第一次点击圆圈变橙+脉冲+「再点确认」提示，3秒超时自动取消
-- 账单批量删除：toggleBatchDelete() 全局函数，勾选不重绘列表（局部 class 切换）
-- 模板管理：toggleTemplateManage() 全局函数，红色抖动动画+显示 ✕ 删除按钮
-- 记账弹窗关闭前先 renderExpenseView()，确保数据立即刷新
-- 月份选择器同时监听 change + blur 事件，去重防止重复渲染
-- 截图存入 expense.image 字段（压缩至 200px 宽的 JPEG）
+- 待办排序：📅截止日期 / 🔴优先级 两种模式 + ↑↓切换正倒序
+  - priority 模式：pinned 只作为同级 tiebreaker，优先级高的排前面
+  - deadline 模式：pinned 无条件置顶
+- 待办时间状态：超时=红色左边框，临期=黄色左边框（阈值在设置中配置，默认3天）
+- 待办备注：标题下方灰色小字
+- 账单批量删除：toggleBatchDelete() 全局函数
+- 模板管理：toggleTemplateManage() 全局函数，toast提示+红色横幅持续显示，点击模板直接删除
+- 模板记账：点击模板自动以**当天日期**记录，无时间路径依赖
+- **自动刷新**：`saveData()` 通过 `requestAnimationFrame` 自动触发 UI 重渲染
+- 月份选择器同时监听 change + blur 事件
 - PWA 安装入口在左下角 ⋯ 更多菜单中
+- 设置入口 → ⚙️（临期天数、时间状态开关、默认排序、排序方向、自定义收支分类）
+- 数据导出/导入 → 💾/📥
+- **全屏报表** → 📊（月度/年度汇总 + Canvas 饼图/柱状图 + 趋势明细表）
+- **可配置分类**：设置中可新增/删除自定义收支分类，合并到默认分类中
 
 ## 不要做的事
 

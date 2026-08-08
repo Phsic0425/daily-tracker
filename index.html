@@ -11,13 +11,14 @@
   <link rel="apple-touch-icon" href="icon-192.png">
   <title>日常记账</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/lunar-javascript@1.7.7/lunar.min.js"></script>
 </head>
 <body>
   <div class="app">
     <!-- 顶部 -->
     <header class="header">
       <div class="header-left">
-        <h1 class="header-title">📒 日常记账 <span style="font-size:0.6rem;opacity:0.6;font-weight:400">v6</span></h1>
+        <h1 class="header-title">📒 日常记账 <span style="font-size:0.6rem;opacity:0.6;font-weight:400">v7</span></h1>
       </div>
       <div class="header-right">
         <button class="btn-month" id="btnPrevMonth" title="上月">◀</button>
@@ -34,6 +35,9 @@
       <button class="tab" data-tab="todo">
         <span class="tab-icon">✅</span><span>待办</span>
         <span class="tab-badge" id="todoBadge">0</span>
+      </button>
+      <button class="tab" data-tab="schedule">
+        <span class="tab-icon">📅</span><span>日程</span>
       </button>
     </nav>
 
@@ -102,9 +106,8 @@
         <form class="todo-form" id="todoForm">
           <input type="text" class="input" id="todoTitle" placeholder="输入待办事项..." required autocomplete="off">
           <div class="todo-form-row">
-            <input type="date" class="input" id="todoStartDate" title="开始日期（选填）">
-            <span class="date-sep">→</span>
             <input type="date" class="input" id="todoDeadline" required title="截止日期">
+            <input type="text" class="input" id="todoNote" placeholder="备注（选填）" maxlength="100" autocomplete="off">
           </div>
           <div class="todo-form-row">
             <select class="input" id="todoPriority">
@@ -112,7 +115,11 @@
               <option value="medium" selected>🟡 中优先</option>
               <option value="low">🟢 低优先</option>
             </select>
-            <button type="submit" class="btn btn-primary">添加</button>
+            <button type="submit" class="btn btn-primary" id="btnTodoSubmit">添加</button>
+          </div>
+          <div class="sub-todo-banner" id="subTodoBanner" style="display:none">
+            <span>📎 正在添加子任务</span>
+            <button type="button" class="btn btn-sm" id="btnExitSubTodo">✕ 退出</button>
           </div>
         </form>
 
@@ -124,6 +131,7 @@
             <div class="sort-mode-group">
               <button class="sort-mode-btn active" data-sort="deadline" title="按截止日期排序">📅</button>
               <button class="sort-mode-btn" data-sort="priority" title="按优先级排序">🔴</button>
+              <button class="sort-dir-btn" id="btnSortDir" title="切换正序/倒序">↓</button>
             </div>
             <button class="btn btn-sm btn-batch-del" id="btnTodoBatchDel" onclick="toggleTodoBatchDelete()">批量删除</button>
           </div>
@@ -151,6 +159,44 @@
             <span class="batch-count" id="completedBatchCount">已选 0 条</span>
           </div>
           <div class="todo-list" id="completedTodoList"></div>
+        </div>
+      </section>
+
+      <!-- ====== 日程页面 ====== -->
+      <section class="tab-content" id="tabSchedule">
+        <!-- 日历头部 -->
+        <div class="cal-header">
+          <button class="btn-month" id="btnCalPrev" title="上月">◀</button>
+          <span class="cal-title" id="calendarTitle">2026年 8月</span>
+          <button class="btn-month" id="btnCalNext" title="下月">▶</button>
+          <button class="btn btn-sm" id="btnCalToday" style="margin-left:8px">今天</button>
+          <span class="section-count" id="calendarCount" style="margin-left:auto"></span>
+          <button class="btn btn-sm" id="btnExportSched" title="导出日程" style="margin-left:4px;font-size:0.7rem">📤</button>
+          <button class="btn btn-sm" id="btnCalSettings" title="日历设置" style="margin-left:2px;font-size:0.7rem">⚙️</button>
+        </div>
+
+        <!-- 日历网格 -->
+        <div class="cal-grid" id="calendarGrid"></div>
+
+        <!-- 即将到来 -->
+        <div class="section" style="margin-top:16px">
+          <div class="section-header">
+            <span>⏰ 即将到来</span>
+          </div>
+          <div class="countdown-card" id="countdownDisplay">
+            <div class="cd-empty">🎉 暂无待办日程</div>
+          </div>
+          <div class="upcoming-list" id="upcomingContent"></div>
+        </div>
+
+        <!-- 选中日期详情 -->
+        <div class="section">
+          <div class="section-header">
+            <span id="dayDetailTitle">📋 日程详情</span>
+          </div>
+          <div class="sched-list" id="scheduleDayDetail">
+            <p class="empty-hint">点击日历日期查看日程</p>
+          </div>
         </div>
       </section>
     </main>
@@ -203,6 +249,90 @@
       <button class="btn btn-ghost btn-block" id="btnCancel">取消</button>
     </div>
 
+    <!-- 日程弹窗 -->
+    <div class="overlay" id="scheduleOverlay"></div>
+    <div class="modal" id="scheduleModal">
+      <div class="modal-handle"></div>
+      <h3 class="modal-title" id="scheduleModalTitle">添加日程</h3>
+
+      <!-- 标题 -->
+      <input type="text" class="input" id="schedTitle" placeholder="日程标题" maxlength="50" style="margin-bottom:12px">
+
+      <!-- 日期 + 时间 -->
+      <div class="form-row">
+        <input type="date" class="input" id="schedDate">
+        <input type="time" class="input" id="schedTime" title="开始时间">
+        <input type="time" class="input" id="schedEndTime" title="结束时间（选填）" placeholder="结束">
+      </div>
+
+      <!-- 重复模式 -->
+      <div class="setting-label" style="margin-bottom:6px">
+        <span>🔁 重复规则</span>
+      </div>
+      <select class="input" id="schedRepeatMode" style="margin-bottom:12px;width:100%"></select>
+
+      <!-- 重复配置区 -->
+      <div class="repeat-configs">
+        <!-- 自定义次数 -->
+        <div class="form-row repeat-config-group" id="repeatCountGroup" style="display:none">
+          <label class="setting-label" style="flex:1"><span>重复次数</span></label>
+          <input type="number" class="setting-num" id="schedRepeatCount" value="3" min="1" max="365" style="width:70px">
+        </div>
+        <!-- 间隔 -->
+        <div class="form-row repeat-config-group" id="repeatIntervalGroup" style="display:none">
+          <label class="setting-label" style="flex:1"><span>间隔（每N天/周/月）</span></label>
+          <input type="number" class="setting-num" id="schedRepeatInterval" value="1" min="1" max="30" style="width:70px">
+        </div>
+        <!-- 结束日期 -->
+        <div class="form-row repeat-config-group" id="repeatEndDateGroup" style="display:none">
+          <label class="setting-label" style="flex:1"><span>结束日期（选填）</span></label>
+          <input type="date" class="input" id="schedRepeatEndDate" style="flex:1">
+        </div>
+        <!-- 每周选择 -->
+        <div class="repeat-config-group" id="repeatWeekdaysGroup" style="display:none;margin-bottom:12px">
+          <label class="setting-label" style="margin-bottom:6px"><span>选择星期</span></label>
+          <div class="weekday-checks" id="weekdayChecks"></div>
+        </div>
+        <!-- 农历配置 -->
+        <div class="repeat-config-group" id="repeatLunarGroup" style="display:none;margin-bottom:12px">
+          <div class="form-row">
+            <select class="input" id="schedLunarMonth"></select>
+            <select class="input" id="schedLunarDay"></select>
+          </div>
+          <label class="tpl-check-label" style="margin-top:4px">
+            <input type="checkbox" id="schedLunarLeap"> 闰月
+          </label>
+        </div>
+      </div>
+
+      <!-- 提醒 -->
+      <div class="setting-label" style="margin-bottom:6px">
+        <span>🔔 提醒</span>
+      </div>
+      <select class="input" id="schedReminder" style="margin-bottom:12px;width:100%"></select>
+
+      <!-- 颜色标记 -->
+      <div class="setting-label" style="margin-bottom:6px">
+        <span>🎨 颜色标记</span>
+      </div>
+      <div class="color-picker" id="schedColorPicker"></div>
+
+      <!-- 日历显示文字 -->
+      <div class="setting-label" style="margin-bottom:6px">
+        <span>📝 日历显示文字</span>
+        <span class="setting-desc">留空则自动截取标题前4字</span>
+      </div>
+      <input type="text" class="input" id="schedDisplayText" placeholder="日历上显示的简短文字（选填）" maxlength="6" style="margin-bottom:12px">
+
+      <!-- 备注 -->
+      <input type="text" class="input" id="schedNote" placeholder="备注（选填）" maxlength="100" style="margin-bottom:16px;margin-top:4px">
+
+      <!-- 按钮 -->
+      <button class="btn btn-primary btn-block" id="btnSaveSchedule">保存</button>
+      <button class="btn btn-block" style="background:#F43F5E;color:#fff;display:none" id="btnDeleteSchedule">删除日程</button>
+      <button class="btn btn-ghost btn-block" id="btnCancelSchedule">取消</button>
+    </div>
+
     <!-- Toast -->
     <div class="toast" id="toast"></div>
 
@@ -220,25 +350,35 @@
     </button>
     <div class="more-menu" id="moreMenu" style="display:none">
       <button class="more-item" id="btnShowReport">📊 报表</button>
-      <button class="more-item" id="btnExportData">💾 导出数据</button>
-      <button class="more-item" id="btnImportData">📥 导入数据</button>
+      <button class="more-item" id="btnShowSettings">⚙️ 设置</button>
+      <button class="more-item" id="btnExportData">💾 导出 JSON</button>
+      <button class="more-item" id="btnImportData">📥 导入 JSON</button>
+      <button class="more-item" id="btnCopySync">📋 复制同步码</button>
+      <button class="more-item" id="btnPasteSync">📌 粘贴同步码</button>
       <button class="more-item" id="btnInstallEntry">📱 安装应用</button>
     </div>
     <input type="file" id="importFileInput" accept=".json" style="display:none">
 
-    <!-- 报表弹窗 -->
-    <div class="overlay" id="reportOverlay"></div>
-    <div class="modal" id="reportModal">
-      <div class="modal-handle"></div>
-      <h3 class="modal-title">
+    <!-- 报表弹窗（全屏） -->
+    <div class="modal-fullscreen" id="reportModal">
+      <div class="report-header">
         <button class="btn-month-report" id="btnReportPrevYear" title="上年">◀◀</button>
         <button class="btn-month-report" id="btnReportPrev">◀</button>
-        <span id="reportTitle">📊 财务报告</span>
+        <span class="report-year-title" id="reportTitle">📊 财务报告</span>
         <button class="btn-month-report" id="btnReportNext">▶</button>
         <button class="btn-month-report" id="btnReportNextYear" title="下年">▶▶</button>
-      </h3>
+        <button class="btn-report-close" id="btnCloseReport">✕</button>
+      </div>
       <div class="report-content" id="reportContent"></div>
-      <button class="btn btn-ghost btn-block" id="btnCloseReport">关闭</button>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div class="overlay" id="settingsOverlay"></div>
+    <div class="modal" id="settingsModal">
+      <div class="modal-handle"></div>
+      <h3 class="modal-title">⚙️ 设置</h3>
+      <div class="settings-content" id="settingsContent"></div>
+      <button class="btn btn-ghost btn-block" id="btnCloseSettings">关闭</button>
     </div>
 
     <!-- 完成特效 -->
@@ -250,6 +390,8 @@
   <script src="js/storage.js"></script>
   <script src="js/expense.js"></script>
   <script src="js/todo.js"></script>
+  <script src="js/schedule.js"></script>
+  <script src="js/calendar.js"></script>
   <script src="js/templates.js"></script>
   <script src="js/effects.js"></script>
   <script src="js/report.js"></script>
