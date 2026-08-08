@@ -92,8 +92,28 @@ function init() {
 
   setupEvents();
 
+  // Service Worker 注册 + 自动更新检测
+  var _waitingWorker = null;
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js').then(function(reg) {
+      // 检测到新版本正在安装
+      reg.addEventListener('updatefound', function() {
+        var newWorker = reg.installing;
+        newWorker.addEventListener('statechange', function() {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            _waitingWorker = newWorker;
+            showUpdateBanner();
+          }
+        });
+      });
+      // 如果已有等待中的 worker
+      if (reg.waiting) {
+        _waitingWorker = reg.waiting;
+        showUpdateBanner();
+      }
+      // 定期检查更新（每小时）
+      setInterval(function() { reg.update(); }, 3600000);
+    }).catch(function() {});
   }
 
   // 云同步初始化
@@ -137,6 +157,34 @@ function startCountdownTimer() {
       if (typeof renderUpcoming === 'function') renderUpcoming();
     }
   }, 1000);
+}
+
+// ---- 版本更新提示 ----
+function showUpdateBanner() {
+  // 避免重复显示
+  if (document.getElementById('updateBanner')) return;
+  var banner = document.createElement('div');
+  banner.id = 'updateBanner';
+  banner.className = 'update-banner';
+  banner.innerHTML = '<span>🔄 有新版本可用</span><button class="btn btn-sm btn-primary" id="btnDoUpdate">立即更新</button>';
+  document.body.appendChild(banner);
+  document.getElementById('btnDoUpdate').addEventListener('click', function() {
+    // 通知等待中的新 SW 跳过等待
+    if (_waitingWorker) {
+      _waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    }
+    // 等新 SW 激活后刷新
+    setTimeout(function() { window.location.reload(); }, 300);
+  });
+}
+
+// SW 消息处理
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'UPDATE_READY') {
+      showUpdateBanner();
+    }
+  });
 }
 
 document.addEventListener('DOMContentLoaded', init);

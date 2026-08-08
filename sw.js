@@ -1,35 +1,42 @@
-const CACHE = 'daily-tracker-v7';
+// 改版本号强制刷新所有缓存
+const CACHE = 'daily-tracker-v8';
 
 self.addEventListener('install', e => {
-  self.skipWaiting();
+  // 不立即 skipWaiting，等用户主动更新
+  // self.skipWaiting();
+});
+
+// 收到页面消息后跳过等待
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('activate', e => {
+  // 删除所有旧版本缓存
   e.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
     )
   );
+  // 立即接管所有页面
   self.clients.claim();
 });
 
-// 网络优先：始终请求最新文件，网络不通时才用缓存
+// 网络优先策略
 self.addEventListener('fetch', e => {
-  // 跳过非 GET 请求
   if (e.request.method !== 'GET') return;
-  // 跳过 chrome-extension 等非 http(s) 请求
   if (!e.request.url.startsWith('http')) return;
 
   e.respondWith(
     fetch(e.request).then(resp => {
-      // 网络请求成功，更新缓存
       if (resp.ok && resp.type !== 'opaque') {
         const clone = resp.clone();
         caches.open(CACHE).then(c => c.put(e.request, clone));
       }
       return resp;
     }).catch(() => {
-      // 网络不通，尝试缓存
       return caches.match(e.request);
     })
   );

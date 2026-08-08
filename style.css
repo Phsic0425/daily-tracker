@@ -834,11 +834,12 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
   max-width: 480px;
   background: var(--card);
   border-radius: 20px 20px 0 0;
-  padding: 8px 16px calc(16px + var(--safe-bottom));
+  padding: 8px 16px calc(20px + var(--safe-bottom));
   z-index: 31;
   transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
   max-height: 85dvh;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .modal.show { transform: translateX(-50%) translateY(0); }
 
@@ -2108,6 +2109,34 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
 }
 .repeat-config-group {
   margin-bottom: 4px;
+}
+
+/* ========== 版本更新横幅 ========== */
+
+.update-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 24px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(99,102,241,.5);
+  animation: slideDown 0.3s ease;
+  white-space: nowrap;
+}
+.update-banner .btn { background: #fff; color: var(--primary); font-size: 0.78rem; padding: 4px 14px; }
+
+@keyframes slideDown {
+  from { transform: translateX(-50%) translateY(-60px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
 }
 
 /* 深色模式支持 */
