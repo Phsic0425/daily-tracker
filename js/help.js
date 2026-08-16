@@ -90,21 +90,22 @@ function renderHelp() {
 
   // === 同步 ===
   h += '<div class="help-block">';
-  h += '<div class="help-h2">☁️ 云同步</div>';
+  h += '<div class="help-h2">☁️ 云端同步</div>';
 
-  h += '<div class="help-h3">设置方法</div>';
+  h += '<div class="help-h3">设置方法（1分钟，无需注册）</div>';
   h += '<ol>';
-  h += '<li>打开 <a href="https://github.com/settings/tokens/new?scopes=gist&description=daily-tracker" target="_blank">GitHub Token 创建页</a>，点 Generate token，复制 ghp_xxx</li>';
-  h += '<li>在设置 → ☁️ 云同步中填入 Token，打开「启用云同步」</li>';
-  h += '<li>点「立即同步」测试</li>';
-  h += '<li>在另一台设备同样操作，填入<b>同一个</b> Token</li>';
+  h += '<li>电脑打开设置 → ☁️ 云端同步 → 点 <b>✨ 创建同步ID</b></li>';
+  h += '<li>复制生成的同步ID（一串字母数字）</li>';
+  h += '<li>手机打开同一个网站 → 设置 → ☁️ 云端同步 → 填入<b>同一个</b>同步ID</li>';
+  h += '<li>打开「自动同步」开关</li>';
   h += '</ol>';
-  h += '<p><b>原理</b>：GitHub Gist 作免费云盘。每次记账/改待办自动上传，每 60 秒拉取其他设备的更新。</p>';
-  h += '<p>Token 仅需 gist 权限，无法访问你的代码仓库。</p>';
+  h += '<p><b>之后电脑改了什么，手机30秒内自动看到。反过来也一样。</b></p>';
+
+  h += '<div class="help-h3">手动同步</div>';
+  h += '<p>设置里有 📥 手动下载 和 📤 手动上传 按钮，不想等自动同步时可以手动操作。</p>';
 
   h += '<div class="help-h3">同步码（备用）</div>';
-  h += '<p>如果不方便设置 Token，可用 ⋯ → 📋 复制同步码 → 在另一设备 📌 粘贴同步码。</p>';
-  h += '<p>同步码包含全部数据（账单+待办+日程+设置），适合偶尔手动同步。</p>';
+  h += '<p>如果不想用云端同步，也可以用 ⋯ → 📋 复制同步码 / 📌 粘贴同步码 手动传输。</p>';
   h += '</div>';
 
   // === 设置 ===
@@ -120,8 +121,8 @@ function renderHelp() {
   h += '<div class="help-h3">日程</div>';
   h += '<p>显示农历日期、显示节假日和节气、日程标签/圆点切换、简洁模式。</p>';
 
-  h += '<div class="help-h3">云同步</div>';
-  h += '<p>GitHub Token 配置、同步开关、同步间隔、手动立即同步。</p>';
+  h += '<div class="help-h3">云端同步</div>';
+  h += '<p>创建同步ID、自动上传下载、手动上传下载按钮。</p>';
   h += '</div>';
 
   // === 快捷键 ===

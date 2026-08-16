@@ -7,7 +7,8 @@ function genId() {
 }
 
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
 function fmtMoney(n) {
@@ -22,10 +23,10 @@ function fmtDate(dateStr) {
   const d = new Date(match[0] + 'T00:00:00');
   if (isNaN(d.getTime())) return '—';
   const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
+  const todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+  const yesterdayStr = yesterday.getFullYear() + '-' + String(yesterday.getMonth() + 1).padStart(2, '0') + '-' + String(yesterday.getDate()).padStart(2, '0');
 
   if (dateStr.slice(0, 10) === todayStr) return '今天';
   if (dateStr.slice(0, 10) === yesterdayStr) return '昨天';

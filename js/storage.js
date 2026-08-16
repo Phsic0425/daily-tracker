@@ -39,6 +39,10 @@ let state = loadData();
 
 // 数据迁移：确保新增字段有默认值
 if (!Array.isArray(state.schedules)) state.schedules = [];
+state.schedules.forEach(s => {
+  if (!s.type) s.type = 'event';      // 事件类 / 背景类
+  if (!s.endDate) s.endDate = '';     // 跨天结束日
+});
 
 // ---- 设置 ----
 const SETTINGS_KEY = 'daily_tracker_settings';
@@ -57,10 +61,9 @@ const DEFAULT_SETTINGS = {
   showHolidays: true,        // 日历显示节假日
   showScheduleLabels: true,  // 日历格显示日程文字（关=仅圆点）
   compactSchedule: false,    // 简洁日程：每格最多1条文字
-  gistToken: '',             // GitHub token（仅 gist 权限）
-  gistId: '',                // Gist ID
-  syncEnabled: false,        // 是否启用自动同步
-  syncInterval: 60,          // 同步间隔（秒）
+  scheduleViewMode: 'month', // 日程视图模式：month=月视图 / week=周视图
+  syncId: '',                // 云端同步 ID
+  syncAuto: true,            // 自动同步开关
 };
 
 function loadSettings() {
@@ -83,211 +86,193 @@ function saveSettings(s) {
 
 let settings = loadSettings();
 
-// ====== GitHub Gist 云同步 ======
+// ====== 云端同步（免费免注册） ======
 
 var _syncTimer = null;
-var _syncing = false;
-var _lastSyncHash = '';
+var _syncBusy = false;
+var _syncSeq = 0; // 版本号，防止旧数据覆盖新数据
 
-function getSyncData() {
+function _syncData() {
   return JSON.stringify({
     expenses: state.expenses,
     todos: state.todos,
-    templates: state.templates,
-    schedules: state.schedules,
-  });
-}
-
-function dataHash() {
-  var s = getSyncData();
-  // 简单哈希
-  var h = 0;
-  for (var i = 0; i < s.length; i++) {
-    h = ((h << 5) - h) + s.charCodeAt(i);
-    h |= 0;
-  }
-  return String(h);
-}
-
-/** 上传数据到 Gist */
-async function syncUpload() {
-  if (!settings.syncEnabled || !settings.gistToken || _syncing) return;
-  var gistId = settings.gistId;
-  var content = getSyncData();
-  var hash = dataHash();
-  if (hash === _lastSyncHash) return; // 没变化，跳过
-
-  _syncing = true;
-  try {
-    var method, url;
-    if (gistId) {
-      method = 'PATCH';
-      url = 'https://api.github.com/gists/' + gistId;
-    } else {
-      method = 'POST';
-      url = 'https://api.github.com/gists';
-    }
-
-    var resp = await fetch(url, {
-      method: method,
-      headers: {
-        'Authorization': 'token ' + settings.gistToken,
-        'Content-Type': 'application/json',
-        'Accept': 'application/vnd.github.v3+json',
-      },
-      body: JSON.stringify({
-        description: '日常记账 数据',
-        public: false,
-        files: { 'daily-tracker.json': { content: content } }
-      }),
-    });
-
-    if (resp.ok) {
-      var data = await resp.json();
-      if (!gistId) {
-        settings.gistId = data.id;
-        saveSettings(settings);
-      }
-      _lastSyncHash = hash;
-      console.log('☁️ 同步上传成功');
-    } else if (resp.status === 401) {
-      showToast('⚠️ GitHub Token 无效，请检查设置');
-    }
-  } catch(e) {
-    console.error('同步上传失败:', e);
-  }
-  _syncing = false;
-}
-
-/** 从 Gist 下载数据 */
-async function syncDownload() {
-  if (!settings.syncEnabled || !settings.gistToken || !settings.gistId || _syncing) return;
-
-  _syncing = true;
-  try {
-    var resp = await fetch('https://api.github.com/gists/' + settings.gistId, {
-      headers: {
-        'Authorization': 'token ' + settings.gistToken,
-        'Accept': 'application/vnd.github.v3+json',
-      },
-    });
-
-    if (resp.ok) {
-      var data = await resp.json();
-      var file = data.files && data.files['daily-tracker.json'];
-      if (file && file.content) {
-        var remoteHash = simpleHash(file.content);
-        if (remoteHash === _lastSyncHash) { _syncing = false; return; }
-
-        var parsed = JSON.parse(file.content);
-        if (parsed) {
-          if (Array.isArray(parsed.expenses)) state.expenses = parsed.expenses;
-          if (Array.isArray(parsed.todos)) state.todos = parsed.todos;
-          if (Array.isArray(parsed.templates)) state.templates = parsed.templates;
-          if (Array.isArray(parsed.schedules)) state.schedules = parsed.schedules;
-          saveData(state);
-          _lastSyncHash = remoteHash;
-          console.log('☁️ 同步下载成功');
-          // 刷新 UI
-          renderExpenseView();
-          renderTodoView();
-          updateTodoBadge();
-          if (typeof renderScheduleView === 'function') renderScheduleView();
-        }
-      }
-    }
-  } catch(e) {
-    console.error('同步下载失败:', e);
-  }
-  _syncing = false;
-}
-
-function simpleHash(s) {
-  var h = 0;
-  for (var i = 0; i < s.length; i++) {
-    h = ((h << 5) - h) + s.charCodeAt(i);
-    h |= 0;
-  }
-  return String(h);
-}
-
-/** 启动定时同步 */
-function startSyncTimer() {
-  stopSyncTimer();
-  if (!settings.syncEnabled || !settings.gistToken || !settings.gistId) return;
-  var interval = (settings.syncInterval || 60) * 1000;
-  _syncTimer = setInterval(function() {
-    syncDownload();
-  }, interval);
-  // 首次立即同步
-  syncDownload();
-}
-
-function stopSyncTimer() {
-  if (_syncTimer) { clearInterval(_syncTimer); _syncTimer = null; }
-}
-
-/** 初始化同步 */
-function initSync() {
-  if (settings.syncEnabled && settings.gistToken && settings.gistId) {
-    startSyncTimer();
-  }
-}
-
-// 重写 saveData，每次保存时自动上传
-var _originalSaveData = saveData;
-saveData = function(data) {
-  _originalSaveData(data);
-  syncUpload();
-};
-
-// ---- 同步码（跨设备） ----
-
-function exportSyncCode() {
-  var data = JSON.stringify({
-    v: 1,
-    expenses: state.expenses,
-    todos: state.todos,
-    templates: state.templates,
-    schedules: state.schedules,
-    settings: settings,
+    templates: state.templates || [],
+    schedules: state.schedules || [],
+    seq: ++_syncSeq,
     ts: Date.now()
   });
-  // 压缩：去掉空格
-  var compact = JSON.stringify(JSON.parse(data));
-  // Base64 编码
-  var code = btoa(unescape(encodeURIComponent(compact)));
-  return code;
 }
 
-function importSyncCode(code) {
-  try {
-    var json = decodeURIComponent(escape(atob(code)));
-    var data = JSON.parse(json);
-    if (!data || typeof data !== 'object' || !data.v) {
-      return { ok: false, error: '无效的同步码' };
-    }
-    // 合并数据
+function syncUpload() {
+  if (!settings.syncId || _syncBusy) return;
+  _syncBusy = true;
+  var data = _syncData();
+  // npoint.io 用 PUT 更新
+  fetch('https://api.npoint.io/' + settings.syncId, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: data
+  }).then(function(r) {
+    if (r.ok) console.log('☁️ 上传成功');
+    _syncBusy = false;
+  }).catch(function() {
+    _syncBusy = false;
+  });
+}
+
+function syncDownload(callback) {
+  if (!settings.syncId || _syncBusy) return;
+  _syncBusy = true;
+  fetch('https://api.npoint.io/' + settings.syncId).then(function(r) {
+    if (!r.ok) { _syncBusy = false; return; }
+    return r.json();
+  }).then(function(data) {
+    _syncBusy = false;
+    if (!data || !data.expenses) return;
     if (Array.isArray(data.expenses)) state.expenses = data.expenses;
     if (Array.isArray(data.todos)) state.todos = data.todos;
     if (Array.isArray(data.templates)) state.templates = data.templates;
     if (Array.isArray(data.schedules)) state.schedules = data.schedules;
-    if (data.settings && typeof data.settings === 'object') {
+    saveData(state);
+    console.log('☁️ 下载成功');
+    if (callback) callback();
+    try { renderExpenseView(); } catch(e) {}
+    try { renderTodoView(); } catch(e) {}
+    try { updateTodoBadge(); } catch(e) {}
+    try { if (typeof renderScheduleView === 'function') renderScheduleView(); } catch(e) {}
+  }).catch(function() {
+    _syncBusy = false;
+  });
+}
+
+function syncCreate(callback) {
+  var data = _syncData();
+  fetch('https://api.npoint.io/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: data
+  }).then(function(r) {
+    return r.json();
+  }).then(function(info) {
+    var id = (info && (info.id || info.url || '')).toString();
+    // 从 url 或 id 中提取纯 ID
+    var m = id.match(/([a-zA-Z0-9]{10,})/);
+    if (m) id = m[1];
+    if (id) {
+      settings.syncId = id;
+      saveSettings(settings);
+    }
+    if (callback) callback(id || '');
+  }).catch(function(e) {
+    console.error('创建失败:', e);
+    if (callback) callback('');
+  });
+}
+
+// 重写 saveData，每次存盘自动上传
+var _realSaveData = saveData;
+saveData = function(data) {
+  _realSaveData(data);
+  if (settings.syncAuto && settings.syncId) syncUpload();
+};
+
+function initSync() {
+  if (settings.syncId && settings.syncAuto) {
+    // 首次拉取
+    syncDownload();
+    // 定时拉取
+    if (_syncTimer) clearInterval(_syncTimer);
+    _syncTimer = setInterval(function() {
+      syncDownload();
+    }, 30000); // 30秒
+  }
+}
+
+// ---- 同步码（跨设备） ----
+
+function exportSyncCode() {
+  // 打包数据
+  var pack = {
+    v: 2,
+    expenses: state.expenses,
+    todos: state.todos,
+    templates: state.templates || [],
+    schedules: state.schedules || [],
+    settings: settings,
+    ts: Date.now()
+  };
+  // JSON → Base64（逐字符编码避免中文问题）
+  var json = JSON.stringify(pack);
+  var bytes = [];
+  for (var i = 0; i < json.length; i++) {
+    var c = json.charCodeAt(i);
+    if (c < 128) {
+      bytes.push(c);
+    } else if (c < 2048) {
+      bytes.push((c >> 6) | 192);
+      bytes.push((c & 63) | 128);
+    } else {
+      bytes.push((c >> 12) | 224);
+      bytes.push(((c >> 6) & 63) | 128);
+      bytes.push((c & 63) | 128);
+    }
+  }
+  var binary = '';
+  for (var j = 0; j < bytes.length; j++) {
+    binary += String.fromCharCode(bytes[j]);
+  }
+  return btoa(binary);
+}
+
+function importSyncCode(code) {
+  try {
+    // Base64 → 二进制 → JSON
+    var binary = atob(code.trim());
+    var bytes = [];
+    for (var i = 0; i < binary.length; i++) {
+      bytes.push(binary.charCodeAt(i) & 255);
+    }
+    var json = '';
+    var idx = 0;
+    while (idx < bytes.length) {
+      var b = bytes[idx];
+      var charLen;
+      var charCode;
+      if (b < 128) {
+        charLen = 1;
+        charCode = b;
+      } else if (b < 224) {
+        charLen = 2;
+        charCode = ((b & 31) << 6) | (bytes[idx + 1] & 63);
+      } else {
+        charLen = 3;
+        charCode = ((b & 15) << 12) | ((bytes[idx + 1] & 63) << 6) | (bytes[idx + 2] & 63);
+      }
+      json += String.fromCharCode(charCode);
+      idx += charLen;
+    }
+    var data = JSON.parse(json);
+    if (!data || !data.v) {
+      return { ok: false, error: '无效的同步码，请确认完整复制' };
+    }
+    // 合并
+    if (Array.isArray(data.expenses)) state.expenses = data.expenses;
+    if (Array.isArray(data.todos)) state.todos = data.todos;
+    if (Array.isArray(data.templates)) state.templates = data.templates;
+    if (Array.isArray(data.schedules)) state.schedules = data.schedules;
+    if (data.settings) {
       Object.assign(settings, data.settings);
       saveSettings(settings);
     }
     saveData(state);
     return {
       ok: true,
-      counts: {
-        expenses: (data.expenses || []).length,
-        todos: (data.todos || []).length,
-        templates: (data.templates || []).length,
-        schedules: (data.schedules || []).length,
-      }
+      expenses: (data.expenses || []).length,
+      todos: (data.todos || []).length,
+      schedules: (data.schedules || []).length,
     };
   } catch(e) {
-    return { ok: false, error: '同步码解析失败: ' + e.message };
+    return { ok: false, error: '同步码无效：' + e.message };
   }
 }
 

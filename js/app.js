@@ -25,9 +25,11 @@ let todoSortAsc = settings.sortAsc !== undefined ? settings.sortAsc : true; // t
 let reportYear, reportMonth; // 报表独立年月
 let scheduleViewMonth = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
 let scheduleSelectedDate = today();
+let scheduleViewMode = settings.scheduleViewMode || 'month'; // 'month' | 'week'
 let scheduleEditId = null;
 let notificationPermission = 'default';
 let countdownTimer = null;
+let _waitingWorker = null; // 等待激活的新 Service Worker
 let collapsedParents = new Set(); // 折叠的父待办 ID 集合
 
 // ---- 全局函数（供 inline onclick 调用）----
@@ -93,7 +95,6 @@ function init() {
   setupEvents();
 
   // Service Worker 注册 + 自动更新检测
-  var _waitingWorker = null;
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').then(function(reg) {
       // 检测到新版本正在安装
@@ -116,7 +117,7 @@ function init() {
     }).catch(function() {});
   }
 
-  // 云同步初始化
+  // 云端同步初始化
   if (typeof initSync === 'function') initSync();
 
   // 请求通知权限
@@ -171,10 +172,17 @@ function showUpdateBanner() {
   document.getElementById('btnDoUpdate').addEventListener('click', function() {
     // 通知等待中的新 SW 跳过等待
     if (_waitingWorker) {
+      // 等新 SW 接管页面后再刷新，避免刷新太快仍加载旧缓存
+      var reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (!reloaded) { reloaded = true; window.location.reload(); }
+      });
       _waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+      // 兜底：300ms 后强制刷新（防止 controllerchange 未触发）
+      setTimeout(function() {
+        if (!reloaded) { reloaded = true; window.location.reload(); }
+      }, 300);
     }
-    // 等新 SW 激活后刷新
-    setTimeout(function() { window.location.reload(); }, 300);
   });
 }
 

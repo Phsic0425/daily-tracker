@@ -8,7 +8,9 @@ function addSchedule(sched) {
   state.schedules.push({
     id: genId(),
     title: sched.title.trim(),
+    type: sched.type || 'event',      // 'event' 事件类 | 'background' 背景类
     date: sched.date,                 // 首个日期 YYYY-MM-DD
+    endDate: sched.endDate || '',     // 跨天结束日（空=单天）
     time: sched.time || '',           // HH:MM
     endTime: sched.endTime || '',     // HH:MM
     displayText: sched.displayText || '', // 日历显示文字（空=自动生成）
@@ -40,7 +42,9 @@ function updateSchedule(id, data) {
   if (!sched) return;
   Object.assign(sched, {
     title: data.title.trim(),
+    type: data.type || 'event',
     date: data.date,
+    endDate: data.endDate || '',
     time: data.time || '',
     endTime: data.endTime || '',
     displayText: data.displayText || '',
@@ -270,6 +274,33 @@ function expandYearlyLunar(sched, from, to) {
   return results;
 }
 
+// ---- 跨天展开 ----
+
+/**
+ * 返回日程在 [fromStr, toStr] 区间内覆盖的所有日期（考虑跨天 endDate）
+ * @returns string[] YYYY-MM-DD
+ */
+function expandScheduleDates(sched, fromStr, toStr) {
+  // 跨天日程(endDate > date)不参与重复，只从开始日展开到结束日
+  const isMultiDay = sched.endDate && sched.endDate > sched.date;
+  const startDates = isMultiDay ? [sched.date] : expandRepeats(sched, fromStr, toStr);
+
+  const results = [];
+  startDates.forEach(function(start) {
+    const d0 = new Date(start + 'T00:00:00');
+    const end = isMultiDay ? sched.endDate : start;
+    const d1 = new Date(end + 'T00:00:00');
+    const days = Math.max(0, Math.round((d1 - d0) / 86400000));
+    for (let i = 0; i <= days; i++) {
+      const d = new Date(d0);
+      d.setDate(d0.getDate() + i);
+      const ds = fmtDateStr(d);
+      if (ds >= fromStr && ds <= toStr) results.push(ds);
+    }
+  });
+  return results;
+}
+
 // ---- 查询 ----
 
 function getSchedulesForDate(dateStr) {
@@ -285,7 +316,7 @@ function getSchedulesForDate(dateStr) {
 
   const result = [];
   state.schedules.forEach(sched => {
-    const dates = expandRepeats(sched, fromStr, toStr);
+    const dates = expandScheduleDates(sched, fromStr, toStr);
     if (dates.includes(dateStr)) {
       result.push({
         ...sched,
@@ -296,7 +327,7 @@ function getSchedulesForDate(dateStr) {
   return result;
 }
 
-/** 获取某月内有日程的日期集合（用于日历标记） */
+/** 获取某月内有事件类日程的日期集合（用于日历事件标签） */
 function getScheduledDatesInMonth(year, month) {
   const firstDay = new Date(year, month - 1, 1);
   const lastDay = new Date(year, month, 0);
@@ -306,11 +337,34 @@ function getScheduledDatesInMonth(year, month) {
   const dateMap = {}; // { 'YYYY-MM-DD': [{color, label}] }
 
   state.schedules.forEach(sched => {
-    const dates = expandRepeats(sched, fromStr, toStr);
+    if (sched.type === 'background') return; // 背景类另走 getBackgroundDatesInMonth
+    const dates = expandScheduleDates(sched, fromStr, toStr);
     const label = sched.displayText || autoLabel(sched.title);
     dates.forEach(d => {
       if (!dateMap[d]) dateMap[d] = [];
       // 去重：同色同标签只显示一次
+      const exists = dateMap[d].some(x => x.label === label);
+      if (!exists) dateMap[d].push({ color: sched.color, label: label });
+    });
+  });
+  return dateMap;
+}
+
+/** 获取某月内背景类日程的日期集合（用于日历背景标签） */
+function getBackgroundDatesInMonth(year, month) {
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  const fromStr = fmtDateStr(firstDay);
+  const toStr = fmtDateStr(lastDay);
+
+  const dateMap = {}; // { 'YYYY-MM-DD': [{color, label}] }
+
+  state.schedules.forEach(sched => {
+    if (sched.type !== 'background') return;
+    const dates = expandScheduleDates(sched, fromStr, toStr);
+    const label = sched.displayText || autoLabel(sched.title);
+    dates.forEach(d => {
+      if (!dateMap[d]) dateMap[d] = [];
       const exists = dateMap[d].some(x => x.label === label);
       if (!exists) dateMap[d].push({ color: sched.color, label: label });
     });
@@ -337,6 +391,7 @@ function getUpcomingSchedules(limit) {
   const allUpcoming = [];
 
   state.schedules.forEach(sched => {
+    if (sched.type === 'background') return; // 背景类不参与即将到来
     const dates = expandRepeats(sched, todayStr, futureStr);
     dates.forEach(d => {
       // 过去的时间点排除

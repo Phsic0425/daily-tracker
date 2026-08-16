@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="icon-192.png">
   <title>日常记账</title>
   <link rel="stylesheet" href="style.css">
-  <script src="https://unpkg.com/lunar-javascript@1.7.7/lunar.min.js"></script>
+  <script src="js/lunar.min.js"></script>
 </head>
 <body>
   <div class="app">
@@ -166,6 +166,10 @@
       <section class="tab-content" id="tabSchedule">
         <!-- 日历头部 -->
         <div class="cal-header">
+          <div class="cal-mode" id="calModeSwitch">
+            <button class="cal-mode-btn" data-mode="month" id="btnCalModeMonth">月</button>
+            <button class="cal-mode-btn" data-mode="week" id="btnCalModeWeek">周</button>
+          </div>
           <button class="btn-month" id="btnCalPrev" title="上月">◀</button>
           <span class="cal-title" id="calendarTitle">2026年 8月</span>
           <button class="btn-month" id="btnCalNext" title="下月">▶</button>
@@ -178,8 +182,19 @@
         <!-- 日历网格 -->
         <div class="cal-grid" id="calendarGrid"></div>
 
+        <!-- 周视图 -->
+        <div id="weekView" style="display:none">
+          <div class="week-strip" id="weekStrip"></div>
+          <div class="section" style="margin-top:12px">
+            <div class="section-header">
+              <span id="weekDayTitle">📋 日程详情</span>
+            </div>
+            <div class="sched-list" id="weekDayDetail"></div>
+          </div>
+        </div>
+
         <!-- 即将到来 -->
-        <div class="section" style="margin-top:16px">
+        <div class="section" id="upcomingSection" style="margin-top:16px">
           <div class="section-header">
             <span>⏰ 即将到来</span>
           </div>
@@ -190,7 +205,7 @@
         </div>
 
         <!-- 选中日期详情 -->
-        <div class="section">
+        <div class="section" id="dayDetailSection">
           <div class="section-header">
             <span id="dayDetailTitle">📋 日程详情</span>
           </div>
@@ -255,17 +270,29 @@
       <div class="modal-handle"></div>
       <h3 class="modal-title" id="scheduleModalTitle">添加日程</h3>
 
+      <!-- 类型切换 -->
+      <div class="sched-type" id="schedTypeSwitch">
+        <button class="sched-type-btn active" data-type="event" id="btnSchedTypeEvent">📌 事件</button>
+        <button class="sched-type-btn" data-type="background" id="btnSchedTypeBackground">🗓 背景</button>
+      </div>
+
       <!-- 标题 -->
       <input type="text" class="input" id="schedTitle" placeholder="日程标题" maxlength="50" style="margin-bottom:12px">
 
-      <!-- 日期 + 时间 -->
+      <!-- 开始/结束日期 -->
       <div class="form-row">
-        <input type="date" class="input" id="schedDate">
+        <input type="date" class="input" id="schedDate" title="开始日期">
+        <input type="date" class="input" id="schedEndDate" title="结束日期（选填=单天）">
+      </div>
+
+      <!-- 时间（仅事件类） -->
+      <div class="form-row" id="eventTimeRow">
         <input type="time" class="input" id="schedTime" title="开始时间">
         <input type="time" class="input" id="schedEndTime" title="结束时间（选填）" placeholder="结束">
       </div>
 
-      <!-- 重复模式 -->
+      <!-- 重复规则（仅事件类，跨天时隐藏） -->
+      <div id="repeatSection">
       <div class="setting-label" style="margin-bottom:6px">
         <span>🔁 重复规则</span>
       </div>
@@ -304,12 +331,15 @@
           </label>
         </div>
       </div>
+      </div>
 
-      <!-- 提醒 -->
+      <!-- 提醒（仅事件类） -->
+      <div id="reminderSection">
       <div class="setting-label" style="margin-bottom:6px">
         <span>🔔 提醒</span>
       </div>
       <select class="input" id="schedReminder" style="margin-bottom:12px;width:100%"></select>
+      </div>
 
       <!-- 颜色标记 -->
       <div class="setting-label" style="margin-bottom:6px">

@@ -399,9 +399,43 @@ function renderCategoryOptions() {
 
 function renderScheduleView() {
   if (typeof renderCalendar !== 'function') return; // 文件未加载时跳过
-  renderCalendar(scheduleViewMonth.year, scheduleViewMonth.month);
-  renderUpcoming();
-  renderDayDetail(scheduleSelectedDate);
+
+  var calendarGrid = document.getElementById('calendarGrid');
+  var weekView = document.getElementById('weekView');
+  var upcomingSection = document.getElementById('upcomingSection');
+  var dayDetailSection = document.getElementById('dayDetailSection');
+  var btnExport = document.getElementById('btnExportSched');
+  var btnPrev = document.getElementById('btnCalPrev');
+  var btnNext = document.getElementById('btnCalNext');
+
+  // 更新模式切换按钮激活态
+  document.querySelectorAll('.cal-mode-btn').forEach(function(b) {
+    b.classList.toggle('active', b.dataset.mode === scheduleViewMode);
+  });
+
+  if (scheduleViewMode === 'week') {
+    // 周模式：日期条 + 选中日从早到晚详情
+    calendarGrid.style.display = 'none';
+    upcomingSection.style.display = 'none';
+    dayDetailSection.style.display = 'none';
+    if (btnExport) btnExport.style.display = 'none';
+    if (btnPrev) btnPrev.title = '上周';
+    if (btnNext) btnNext.title = '下周';
+    weekView.style.display = '';
+    renderWeekView();
+  } else {
+    // 月模式：月历 + 即将到来 + 选中日详情
+    calendarGrid.style.display = '';
+    upcomingSection.style.display = '';
+    dayDetailSection.style.display = '';
+    if (btnExport) btnExport.style.display = '';
+    if (btnPrev) btnPrev.title = '上月';
+    if (btnNext) btnNext.title = '下月';
+    weekView.style.display = 'none';
+    renderCalendar(scheduleViewMonth.year, scheduleViewMonth.month);
+    renderUpcoming();
+    renderDayDetail(scheduleSelectedDate);
+  }
 }
 
 // ========== 设置弹窗 ==========
@@ -503,38 +537,31 @@ function renderSettings() {
 
     <!-- ====== ☁️ 同步 ====== -->
     <div class="setting-block" id="settingBlockSync">
-      <div class="setting-block-title">☁️ 云同步</div>
+      <div class="setting-block-title">☁️ 云端同步</div>
       <div class="setting-desc" style="padding:0 4px 8px;font-size:0.75rem;color:var(--text-muted)">
-        使用 GitHub Gist 作为免费云存储，实现手机与电脑数据实时同步。<br>
-        需要创建 <a href="https://github.com/settings/tokens/new?scopes=gist&description=daily-tracker" target="_blank" style="color:var(--primary)">GitHub Token</a>（仅勾选 gist 权限）。
+        两台设备填入同一个同步ID即可自动同步。免注册、免费。
       </div>
-
       <div class="setting-item">
         <div class="setting-label">
-          <span>启用云同步</span>
-          <span class="setting-desc">自动上传+定时下载</span>
+          <span>自动同步</span>
+          <span class="setting-desc">保存时自动上传，每30秒下载</span>
         </div>
         <label class="switch-label">
-          <input type="checkbox" id="settingSyncEnabled" ${settings.syncEnabled ? 'checked' : ''}>
+          <input type="checkbox" id="settingSyncAuto" ${settings.syncAuto !== false ? 'checked' : ''}>
           <span class="switch-track"></span>
         </label>
       </div>
       <div class="setting-item">
         <div class="setting-label">
-          <span>GitHub Token</span>
-          <span class="setting-desc">仅需 gist 权限，不碰代码仓库</span>
+          <span>同步ID</span>
+          <span class="setting-desc">两台设备填同一个ID</span>
         </div>
-        <input type="password" class="input" id="settingGistToken" value="${settings.gistToken || ''}" placeholder="ghp_xxxxxxxx" style="width:180px;flex:none">
+        <input type="text" class="input" id="settingSyncId" value="${settings.syncId || ''}" placeholder="点击「创建」生成" style="flex:1;font-family:monospace;font-size:0.75rem">
       </div>
-      <div class="setting-item">
-        <div class="setting-label">
-          <span>同步间隔（秒）</span>
-          <span class="setting-desc">建议 60 秒</span>
-        </div>
-        <input type="number" class="setting-num" id="settingSyncInterval" value="${settings.syncInterval || 60}" min="10" max="3600" step="10">
-      </div>
-      <div class="setting-item" style="justify-content:flex-start;gap:8px">
-        <button class="btn btn-sm btn-primary" id="btnSyncNow">🔄 立即同步</button>
+      <div class="setting-item" style="justify-content:flex-start;gap:8px;flex-wrap:wrap">
+        ${!settings.syncId ? '<button class="btn btn-sm btn-primary" id="btnSyncCreate">✨ 创建同步ID</button>' : ''}
+        <button class="btn btn-sm" id="btnSyncPull">📥 手动下载</button>
+        <button class="btn btn-sm" id="btnSyncPush">📤 手动上传</button>
         <span style="font-size:0.72rem;color:var(--text-muted)" id="syncStatus"></span>
       </div>
     </div>
@@ -610,10 +637,11 @@ function handleSaveSettings() {
   settings.showHolidays = document.getElementById('settingShowHolidays').checked;
   settings.showScheduleLabels = document.getElementById('settingShowScheduleLabels').checked;
   settings.compactSchedule = document.getElementById('settingCompactSchedule').checked;
-  // 同步设置
-  settings.syncEnabled = document.getElementById('settingSyncEnabled').checked;
-  settings.gistToken = document.getElementById('settingGistToken').value.trim();
-  settings.syncInterval = parseInt(document.getElementById('settingSyncInterval').value) || 60;
+  settings.syncAuto = document.getElementById('settingSyncAuto').checked;
+  var newSyncId = document.getElementById('settingSyncId').value.trim();
+  if (newSyncId !== settings.syncId) {
+    settings.syncId = newSyncId;
+  }
   saveSettings(settings);
   // 应用同步
   if (typeof initSync === 'function') initSync();

@@ -500,20 +500,42 @@ function setupEvents() {
       if (hint) hint.textContent = e.target.checked ? '升序' : '倒序';
     }
   });
-  // 立即同步
+  // 云端同步按钮
   document.getElementById('settingsContent').addEventListener('click', e => {
-    if (e.target.id === 'btnSyncNow') {
+    if (e.target.id === 'btnSyncCreate') {
       var statusEl = document.getElementById('syncStatus');
-      if (!settings.gistToken) { statusEl.textContent = '请先填写 GitHub Token'; return; }
-      statusEl.textContent = '同步中...';
-      syncDownload().then(function() {
-        statusEl.textContent = '✅ 同步完成 ' + new Date().toLocaleTimeString();
-        syncUpload().then(function() {
-          setTimeout(function() { statusEl.textContent = ''; }, 3000);
-        });
-      }).catch(function() {
-        statusEl.textContent = '❌ 同步失败，检查 Token';
+      statusEl.textContent = '创建中...';
+      syncCreate(function(id) {
+        if (id) {
+          document.getElementById('settingSyncId').value = id;
+          settings.syncId = id;
+          saveSettings(settings);
+          statusEl.textContent = '✅ 已创建！';
+          showToast('☁️ 同步ID: ' + id.slice(0,12) + '... 填入另一设备即可');
+          initSync();
+        } else {
+          statusEl.textContent = '❌ 失败，检查网络后重试';
+        }
       });
+      return;
+    }
+    if (e.target.id === 'btnSyncPull') {
+      var statusEl = document.getElementById('syncStatus');
+      if (!settings.syncId) { statusEl.textContent = '请先创建或填入同步ID'; return; }
+      statusEl.textContent = '下载中...';
+      syncDownload(function() {
+        statusEl.textContent = '✅ 下载完成 ' + new Date().toLocaleTimeString();
+        setTimeout(function() { statusEl.textContent = ''; }, 3000);
+      });
+      return;
+    }
+    if (e.target.id === 'btnSyncPush') {
+      var statusEl = document.getElementById('syncStatus');
+      if (!settings.syncId) { statusEl.textContent = '请先创建或填入同步ID'; return; }
+      statusEl.textContent = '上传中...';
+      syncUpload();
+      statusEl.textContent = '✅ 上传完成 ' + new Date().toLocaleTimeString();
+      setTimeout(function() { statusEl.textContent = ''; }, 3000);
       return;
     }
   });
@@ -607,7 +629,7 @@ function setupEvents() {
     if (!code) return;
     var result = importSyncCode(code.trim());
     if (result.ok) {
-      showToast('✅ 已同步：' + result.counts.expenses + '账单 ' + result.counts.todos + '待办 ' + result.counts.schedules + '日程');
+      showToast('✅ 已同步：' + result.expenses + '账单 ' + result.todos + '待办 ' + result.schedules + '日程');
       renderExpenseView();
       renderTodoView();
       updateTodoBadge();
@@ -618,13 +640,39 @@ function setupEvents() {
   });
   // ========== 日程事件 ==========
 
-  // ---- 日历月份导航 ----
+  // ---- 日程视图模式切换（月/周）----
+  document.querySelectorAll('.cal-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      scheduleViewMode = btn.dataset.mode;
+      settings.scheduleViewMode = scheduleViewMode;
+      saveSettings(settings);
+      renderScheduleView();
+    });
+  });
+
+  // ---- 日历月份/周导航 ----
   document.getElementById('btnCalPrev').addEventListener('click', () => {
+    if (scheduleViewMode === 'week') {
+      const d = new Date(scheduleSelectedDate + 'T00:00:00');
+      d.setDate(d.getDate() - 7);
+      scheduleSelectedDate = fmtDateStr(d);
+      scheduleViewMonth = { year: d.getFullYear(), month: d.getMonth() + 1 };
+      renderScheduleView();
+      return;
+    }
     scheduleViewMonth.month--;
     if (scheduleViewMonth.month === 0) { scheduleViewMonth.month = 12; scheduleViewMonth.year--; }
     renderScheduleView();
   });
   document.getElementById('btnCalNext').addEventListener('click', () => {
+    if (scheduleViewMode === 'week') {
+      const d = new Date(scheduleSelectedDate + 'T00:00:00');
+      d.setDate(d.getDate() + 7);
+      scheduleSelectedDate = fmtDateStr(d);
+      scheduleViewMonth = { year: d.getFullYear(), month: d.getMonth() + 1 };
+      renderScheduleView();
+      return;
+    }
     scheduleViewMonth.month++;
     if (scheduleViewMonth.month === 13) { scheduleViewMonth.month = 1; scheduleViewMonth.year++; }
     renderScheduleView();
@@ -671,6 +719,21 @@ function setupEvents() {
     renderDayDetail(scheduleSelectedDate);
   });
 
+  // ---- 周视图日期条点击 ----
+  document.getElementById('weekStrip').addEventListener('click', e => {
+    const dayEl = e.target.closest('[data-action="select-week-day"]');
+    if (!dayEl) return;
+    scheduleSelectedDate = dayEl.dataset.date;
+    renderWeekView();
+  });
+
+  // ---- 周视图详情：点击日程项编辑 ----
+  document.getElementById('weekDayDetail').addEventListener('click', e => {
+    const item = e.target.closest('[data-action="edit-schedule"]');
+    if (!item) return;
+    openScheduleModal(scheduleSelectedDate, item.dataset.id);
+  });
+
   // ---- 选中日期详情：点击日程项编辑 ----
   document.getElementById('scheduleDayDetail').addEventListener('click', e => {
     const item = e.target.closest('[data-action="edit-schedule"]');
@@ -698,6 +761,19 @@ function setupEvents() {
 
   // 重复模式切换 → 动态配置区
   document.getElementById('schedRepeatMode').addEventListener('change', renderRepeatConfig);
+
+  // 类型切换（事件 / 背景）
+  document.getElementById('btnSchedTypeEvent').addEventListener('click', () => {
+    scheduleFormType = 'event';
+    renderScheduleType();
+  });
+  document.getElementById('btnSchedTypeBackground').addEventListener('click', () => {
+    scheduleFormType = 'background';
+    renderScheduleType();
+  });
+
+  // 结束日期变化 → 联动重复区显隐
+  document.getElementById('schedEndDate').addEventListener('change', renderScheduleType);
 
   // 颜色选择
   document.getElementById('schedColorPicker').addEventListener('click', e => {

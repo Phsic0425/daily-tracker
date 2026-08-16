@@ -11,9 +11,10 @@ function renderCalendar(year, month) {
   var todayStr = today();
   var firstDay = new Date(year, month - 1, 1);
   var daysInMonth = new Date(year, month, 0).getDate();
-  var startDow = firstDay.getDay();
+  var startDow = firstDay.getDay(); // 0=周日
 
   var dateMap = getScheduledDatesInMonth(year, month);
+  var bgMap = getBackgroundDatesInMonth(year, month);
 
   var monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
   document.getElementById('calendarTitle').textContent = year + '年 ' + monthNames[month - 1];
@@ -21,16 +22,23 @@ function renderCalendar(year, month) {
   var totalSchedDays = Object.keys(dateMap).length;
   document.getElementById('calendarCount').textContent = totalSchedDays > 0 ? totalSchedDays + '天有日程' : '';
 
-  // 用数组拼接，最后一次性 innerHTML
+  // 设置开关
+  var showLunar = settings.showLunar !== false;
+  var showHolidays = settings.showHolidays !== false;
+  var showLabels = settings.showScheduleLabels !== false;
+  var compactMode = settings.compactSchedule === true;
+
   var parts = [];
 
-  // 星期头
+  // 星期头 — 周末用不同颜色
   var weeks = ['日','一','二','三','四','五','六'];
   for (var wi = 0; wi < 7; wi++) {
-    parts.push('<div class="cal-weekday">' + weeks[wi] + '</div>');
+    var wCls = 'cal-weekday';
+    if (wi === 0 || wi === 6) wCls += ' weekend';
+    parts.push('<div class="' + wCls + '">' + weeks[wi] + '</div>');
   }
 
-  // 空白填充
+  // 空白填充（上月末尾）
   for (var i = 0; i < startDow; i++) {
     parts.push('<div class="cal-day empty"></div>');
   }
@@ -44,31 +52,71 @@ function renderCalendar(year, month) {
     var isSelected = dateStr === scheduleSelectedDate;
     var items = dateMap[dateStr] || [];
 
+    // 计算星期几 (0=周日, 6=周六)
+    var dow = (startDow + d - 1) % 7;
+
     var cls = 'cal-day';
     if (isToday) cls += ' today';
     if (isSelected) cls += ' selected';
+    if (dow === 0 || dow === 6) cls += ' weekend';
 
     parts.push('<div class="' + cls + '" data-date="' + dateStr + '" data-action="select-date">');
-    parts.push('<span class="cal-day-num">' + d + '</span>');
 
-    // 农历（始终显示）
-    var lunarStr = getLunarDateStr(dateStr);
-    if (lunarStr) {
-      parts.push('<span class="cal-lunar">' + lunarStr + '</span>');
-    }
-
-    // 日程标签（始终显示文字，最多2条）
-    if (items.length > 0) {
-      parts.push('<span class="cal-labels">');
-      var maxShow = items.length > 2 ? 2 : items.length;
-      for (var si = 0; si < maxShow; si++) {
-        var item = items[si];
-        parts.push('<span class="cal-label" style="background:' + item.color + '15;color:' + item.color + '">' + item.label + '</span>');
-      }
-      if (items.length > 2) {
-        parts.push('<span class="cal-dot-more">+' + (items.length - 2) + '</span>');
+    // 背景标签（顶部）
+    var bgItems = bgMap[dateStr] || [];
+    if (bgItems.length > 0) {
+      parts.push('<span class="cal-bg-labels">');
+      for (var bi = 0; bi < bgItems.length; bi++) {
+        var bgItem = bgItems[bi];
+        parts.push('<span class="cal-bg-label" style="background:' + bgItem.color + '20;color:' + bgItem.color + '">' + bgItem.label + '</span>');
       }
       parts.push('</span>');
+    }
+
+    // 日期数字
+    parts.push('<span class="cal-day-num">' + d + '</span>');
+
+    // 农历（根据设置）
+    if (showLunar) {
+      var lunarStr = getLunarDateStr(dateStr);
+      if (lunarStr) {
+        parts.push('<span class="cal-lunar">' + lunarStr + '</span>');
+      }
+    }
+
+    // 节假日/节气（根据设置）
+    if (showHolidays) {
+      var holidayStr = getHoliday(dateStr);
+      if (holidayStr) {
+        parts.push('<span class="cal-holiday">' + holidayStr + '</span>');
+      }
+    }
+
+    // 日程标签
+    if (items.length > 0) {
+      if (showLabels) {
+        parts.push('<span class="cal-labels">');
+        var maxShow = compactMode ? 1 : (items.length > 2 ? 2 : items.length);
+        for (var si = 0; si < maxShow; si++) {
+          var item = items[si];
+          parts.push('<span class="cal-label" style="background:' + item.color + '15;color:' + item.color + '">' + item.label + '</span>');
+        }
+        if (items.length > maxShow) {
+          parts.push('<span class="cal-dot-more">+' + (items.length - maxShow) + '</span>');
+        }
+        parts.push('</span>');
+      } else {
+        // 仅显示彩色圆点
+        parts.push('<span class="cal-dots">');
+        var dotMax = compactMode ? 3 : 5;
+        for (var di = 0; di < items.length && di < dotMax; di++) {
+          parts.push('<span class="cal-dot" style="background:' + items[di].color + '"></span>');
+        }
+        if (items.length > dotMax) {
+          parts.push('<span class="cal-dot-more">+' + (items.length - dotMax) + '</span>');
+        }
+        parts.push('</span>');
+      }
     } else {
       parts.push('<span class="cal-labels"></span>');
     }
@@ -101,8 +149,12 @@ function renderDayDetail(dateStr) {
   }
 
   container.innerHTML = schedules.map(s => {
+    const isBg = s.type === 'background';
+    const isMultiDay = s.endDate && s.endDate > s.date;
     let timeStr = '';
-    if (s.time) {
+    if (isBg) {
+      timeStr = isMultiDay ? '全天' : '背景';
+    } else if (s.time) {
       timeStr = s.time;
       if (s.endTime) timeStr += ' - ' + s.endTime;
     }
@@ -110,19 +162,145 @@ function renderDayDetail(dateStr) {
     const repeatMode = REPEAT_MODES.find(r => r.key === s.repeat.mode);
     const repeatLabel = repeatMode ? repeatMode.icon + ' ' + repeatMode.label : '';
 
+    // 跨天范围 / 下次
+    let rangeHtml = '';
+    if (isMultiDay) {
+      rangeHtml = `<span class="sched-next">${fmtDateShort(s.date)} - ${fmtDateShort(s.endDate)}</span>`;
+    } else if (!isBg && s.repeat.mode !== 'once') {
+      rangeHtml = `<span class="sched-next">下次: ${(s._occurrences && s._occurrences[1]) ? fmtDateShort(s._occurrences[1]) : '—'}</span>`;
+    }
+
     return `
-      <div class="sched-item" style="border-left-color:${s.color}" data-id="${s.id}" data-action="edit-schedule">
+      <div class="sched-item${isBg ? ' sched-bg-item' : ''}" style="border-left-color:${s.color}" data-id="${s.id}" data-action="edit-schedule">
         <div class="sched-item-top">
           <span class="sched-color-dot" style="background:${s.color}"></span>
           <span class="sched-title">${escapeHtml(s.title)}</span>
-          ${timeStr ? `<span class="sched-time">🕐 ${timeStr}</span>` : ''}
+          ${timeStr ? `<span class="sched-time">${isBg ? '📅 ' : '🕐 '}${timeStr}</span>` : ''}
         </div>
         ${noteHtml}
         <div class="sched-meta">
-          <span class="sched-repeat">${repeatLabel}</span>
-          ${s.repeat.mode !== 'once' ? `<span class="sched-next">下次: ${(s._occurrences && s._occurrences[1]) ? fmtDateShort(s._occurrences[1]) : '—'}</span>` : ''}
+          ${!isBg && repeatLabel ? `<span class="sched-repeat">${repeatLabel}</span>` : ''}
+          ${rangeHtml}
         </div>
       </div>`;
+  }).join('');
+}
+
+// ---- 周视图 ----
+
+/** 按时间从早到晚排序（无时间的排最后，再按标题稳定排序） */
+function sortSchedulesByTime(list) {
+  return list.slice().sort(function(a, b) {
+    var ta = a.time || '99:99';
+    var tb = b.time || '99:99';
+    if (ta !== tb) return ta.localeCompare(tb);
+    return (a.title || '').localeCompare(b.title || '');
+  });
+}
+
+/** 返回 dateStr 所在周的周日（一周从周日开始） */
+function getWeekStart(dateStr) {
+  var d = new Date(dateStr + 'T00:00:00');
+  var start = new Date(d);
+  start.setDate(d.getDate() - d.getDay());
+  return start;
+}
+
+/** 格式化周范围标题 */
+function formatWeekRange(start, end) {
+  var s = fmtDateShort(fmtDateStr(start)); // M月D日
+  var e = fmtDateShort(fmtDateStr(end));
+  if (start.getFullYear() !== end.getFullYear()) {
+    return start.getFullYear() + '年' + s + ' - ' + end.getFullYear() + '年' + e;
+  }
+  if (start.getMonth() === end.getMonth()) {
+    return s + ' - ' + end.getDate() + '日';
+  }
+  return s + ' - ' + e;
+}
+
+/** 周视图入口：渲染日期条 + 选中日详情 */
+function renderWeekView() {
+  var start = getWeekStart(scheduleSelectedDate);
+  var end = new Date(start);
+  end.setDate(start.getDate() + 6);
+
+  document.getElementById('calendarTitle').textContent = formatWeekRange(start, end);
+  document.getElementById('calendarCount').textContent = '';
+
+  renderWeekStrip();
+  renderWeekDayDetail(scheduleSelectedDate);
+}
+
+/** 渲染 7 天日期条（周日~周六） */
+function renderWeekStrip() {
+  var container = document.getElementById('weekStrip');
+  if (!container) return;
+
+  var start = getWeekStart(scheduleSelectedDate);
+  var todayStr = today();
+  var weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+  var parts = [];
+
+  for (var i = 0; i < 7; i++) {
+    var d = new Date(start);
+    d.setDate(start.getDate() + i);
+    var dateStr = fmtDateStr(d);
+    var dow = d.getDay();
+    var isToday = dateStr === todayStr;
+    var isSelected = dateStr === scheduleSelectedDate;
+
+    var cls = 'week-day';
+    if (isToday) cls += ' today';
+    if (isSelected) cls += ' selected';
+    if (dow === 0 || dow === 6) cls += ' weekend';
+
+    parts.push('<div class="' + cls + '" data-date="' + dateStr + '" data-action="select-week-day">');
+    parts.push('<span class="week-day-name">' + weekdays[dow] + '</span>');
+    parts.push('<span class="week-day-num">' + d.getDate() + '</span>');
+    parts.push('</div>');
+  }
+
+  container.innerHTML = parts.join('');
+}
+
+/** 渲染选中日从早到晚的日程 */
+function renderWeekDayDetail(dateStr) {
+  var container = document.getElementById('weekDayDetail');
+  if (!container) return;
+
+  var schedules = sortSchedulesByTime(getSchedulesForDate(dateStr));
+
+  var d = new Date(dateStr + 'T00:00:00');
+  var weekDay = WEEKDAY_NAMES[d.getDay()];
+  var lunarStr = getLunarDateStr(dateStr);
+  var title = '📋 ' + fmtDateShort(dateStr) + ' 周' + weekDay;
+  if (lunarStr) title += ' · ' + lunarStr;
+  document.getElementById('weekDayTitle').textContent = title;
+
+  if (schedules.length === 0) {
+    container.innerHTML = '<p class="empty-hint">这天没有日程，点右下角 + 添加</p>';
+    return;
+  }
+
+  container.innerHTML = schedules.map(function(s) {
+    var isBg = s.type === 'background';
+    var timeStr = isBg ? '背景' : (s.time || '全天');
+    if (!isBg && s.time && s.endTime) timeStr = s.time + ' - ' + s.endTime;
+    var timeCls = 'week-time' + (isBg || !s.time ? ' all-day' : '');
+    var noteHtml = s.note ? '<div class="sched-note">' + escapeHtml(s.note) + '</div>' : '';
+    var repeatMode = REPEAT_MODES.find(function(r) { return r.key === s.repeat.mode; });
+    var repeatLabel = repeatMode ? repeatMode.icon + ' ' + repeatMode.label : '';
+
+    return '<div class="sched-item week-sched-item' + (isBg ? ' sched-bg-item' : '') + '" style="border-left-color:' + s.color + '" data-id="' + s.id + '" data-action="edit-schedule">' +
+      '<div class="sched-item-top">' +
+        '<span class="' + timeCls + '">' + timeStr + '</span>' +
+        '<span class="sched-color-dot" style="background:' + s.color + '"></span>' +
+        '<span class="sched-title">' + escapeHtml(s.title) + '</span>' +
+      '</div>' +
+      noteHtml +
+      ((!isBg && repeatLabel) ? '<div class="sched-meta"><span class="sched-repeat">' + repeatLabel + '</span></div>' : '') +
+    '</div>';
   }).join('');
 }
 
@@ -199,7 +377,7 @@ function openScheduleModal(dateStr, editId) {
     document.getElementById('btnDeleteSchedule').style.display = 'none';
   }
 
-  renderRepeatConfig();
+  renderScheduleType();
 }
 
 function closeScheduleModal() {
@@ -210,8 +388,10 @@ function closeScheduleModal() {
 }
 
 function resetScheduleForm(dateStr) {
+  scheduleFormType = 'event';
   document.getElementById('schedTitle').value = '';
   document.getElementById('schedDate').value = dateStr || today();
+  document.getElementById('schedEndDate').value = '';
   document.getElementById('schedTime').value = '';
   document.getElementById('schedEndTime').value = '';
   document.getElementById('schedRepeatMode').value = 'once';
@@ -231,6 +411,7 @@ function resetScheduleForm(dateStr) {
   document.querySelectorAll('.color-option').forEach((el, i) => {
     el.classList.toggle('selected', i === 0);
   });
+  renderScheduleType();
 }
 
 // 初始化弹窗动态选项（只执行一次）
@@ -271,8 +452,10 @@ function initScheduleFormOptions() {
 }
 
 function fillScheduleForm(sched) {
+  scheduleFormType = sched.type || 'event';
   document.getElementById('schedTitle').value = sched.title;
   document.getElementById('schedDate').value = sched.date;
+  document.getElementById('schedEndDate').value = sched.endDate || '';
   document.getElementById('schedTime').value = sched.time || '';
   document.getElementById('schedEndTime').value = sched.endTime || '';
   document.getElementById('schedRepeatMode').value = sched.repeat.mode;
@@ -294,9 +477,11 @@ function fillScheduleForm(sched) {
   document.querySelectorAll('.color-option').forEach(el => {
     el.classList.toggle('selected', el.dataset.color === scheduleFormColor);
   });
+  renderScheduleType();
 }
 
 let scheduleFormColor = '#6366F1';
+let scheduleFormType = 'event'; // 当前表单类型：'event' | 'background'
 
 function setScheduleColor(color) {
   scheduleFormColor = color;
@@ -321,11 +506,30 @@ function renderRepeatConfig() {
   });
 }
 
+// 按类型显隐表单区块
+function renderScheduleType() {
+  const isEvent = scheduleFormType === 'event';
+  document.querySelectorAll('.sched-type-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.type === scheduleFormType);
+  });
+  document.getElementById('eventTimeRow').style.display = isEvent ? '' : 'none';
+  document.getElementById('reminderSection').style.display = isEvent ? '' : 'none';
+
+  // 重复区：仅事件类且未跨天时显示
+  const endDate = document.getElementById('schedEndDate').value;
+  const isMultiDay = endDate && endDate > document.getElementById('schedDate').value;
+  document.getElementById('repeatSection').style.display = (isEvent && !isMultiDay) ? '' : 'none';
+
+  renderRepeatConfig();
+}
+
 // ---- 保存/删除 ----
 
 function handleSaveSchedule() {
   const title = document.getElementById('schedTitle').value.trim();
+  const type = scheduleFormType;
   const date = document.getElementById('schedDate').value;
+  const endDate = document.getElementById('schedEndDate').value;
   const time = document.getElementById('schedTime').value;
   const endTime = document.getElementById('schedEndTime').value;
   const repeatMode = document.getElementById('schedRepeatMode').value;
@@ -334,9 +538,17 @@ function handleSaveSchedule() {
 
   if (!title) { showToast('请输入日程标题'); return; }
   if (!date) { showToast('请选择日期'); return; }
+  if (endDate && endDate < date) { showToast('结束日期不能早于开始日期'); return; }
+
+  // 背景类无时间、无重复；跨天（含事件）不重复
+  const isBackground = type === 'background';
+  const isMultiDay = endDate && endDate > date;
+  const finalTime = isBackground ? '' : time;
+  const finalEndTime = isBackground ? '' : endTime;
+  const finalRepeatMode = (isBackground || isMultiDay) ? 'once' : repeatMode;
 
   const repeatData = {
-    mode: repeatMode,
+    mode: finalRepeatMode,
     count: parseInt(document.getElementById('schedRepeatCount').value) || 0,
     interval: parseInt(document.getElementById('schedRepeatInterval').value) || 1,
     endDate: document.getElementById('schedRepeatEndDate').value || '',
@@ -346,7 +558,7 @@ function handleSaveSchedule() {
     lunarLeap: document.getElementById('schedLunarLeap').checked,
   };
 
-  if (repeatMode === 'weekly') {
+  if (finalRepeatMode === 'weekly') {
     document.querySelectorAll('.weekday-check input:checked').forEach(cb => {
       repeatData.weekdays.push(parseInt(cb.value));
     });
@@ -358,10 +570,13 @@ function handleSaveSchedule() {
   const displayText = document.getElementById('schedDisplayText').value.trim();
 
   const data = {
-    title, date, time, endTime,
+    title, type,
+    date, endDate,
+    time: finalTime, endTime: finalEndTime,
     displayText,
     repeat: repeatData,
-    reminder, note,
+    reminder: isBackground ? -1 : reminder,
+    note,
     color: scheduleFormColor,
   };
 
@@ -433,6 +648,7 @@ function exportCalendarImage() {
   const dateMap = getScheduledDatesInMonth(year, month);
   const allSchedules = [];
   state.schedules.forEach(s => {
+    if (s.type === 'background') return; // 背景类不进入月度导出列表
     const dates = expandRepeats(s, `${year}-${String(month).padStart(2,'0')}-01`,
       `${year}-${String(month).padStart(2,'0')}-${daysInMonth}`);
     dates.forEach(d => allSchedules.push({ date: d, title: s.title, time: s.time, color: s.color, note: s.note }));

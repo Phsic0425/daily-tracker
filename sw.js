@@ -1,5 +1,5 @@
 // 改版本号强制刷新所有缓存
-const CACHE = 'daily-tracker-v8';
+const CACHE = 'daily-tracker-v9';
 
 self.addEventListener('install', e => {
   // 不立即 skipWaiting，等用户主动更新
