@@ -79,7 +79,8 @@ function setupEvents() {
     if (activeTab && activeTab.dataset.tab === 'todo') {
       document.getElementById('todoTitle').focus();
     } else if (activeTab && activeTab.dataset.tab === 'schedule') {
-      openScheduleModal(scheduleSelectedDate);
+      if (scheduleViewMode === 'timetable') openCourseModal(null);
+      else openScheduleModal(scheduleSelectedDate);
     } else {
       openExpenseModal();
     }
@@ -94,6 +95,13 @@ function setupEvents() {
     updateTypeToggle();
     renderCategoryOptions();
   });
+  document.getElementById('chkByBalance').addEventListener('change', e => {
+    byBalanceMode = e.target.checked;
+    updateByBalanceUI();
+  });
+  document.getElementById('inputAccount').addEventListener('change', () => {
+    if (byBalanceMode) refreshByBalanceHint();
+  });
   document.getElementById('categoryGrid').addEventListener('click', e => {
     const btn = e.target.closest('.cat-option');
     if (!btn) return;
@@ -107,7 +115,49 @@ function setupEvents() {
     if (e.key === 'Escape') {
       if (document.getElementById('helpModal').classList.contains('show')) closeHelp();
       else if (document.getElementById('scheduleModal').classList.contains('show')) closeScheduleModal();
+      else if (document.getElementById('courseModal').classList.contains('show')) closeCourseModal();
+      else if (document.getElementById('assetModal').classList.contains('show')) closeAssetModal();
       else closeExpenseModal();
+    }
+  });
+
+  // ---- 资产 ----
+  document.getElementById('btnOpenAssets').addEventListener('click', () => openAssetModal());
+  document.getElementById('btnCloseAsset').addEventListener('click', closeAssetModal);
+  document.getElementById('assetOverlay').addEventListener('click', closeAssetModal);
+  document.getElementById('btnShowAssetForm').addEventListener('click', () => showAssetForm(null));
+  document.getElementById('btnCancelAssetForm').addEventListener('click', () => { hideAssetForms(); renderAssets(); });
+  document.getElementById('btnSaveAsset').addEventListener('click', handleSaveAsset);
+  document.getElementById('btnShowTransfer').addEventListener('click', showTransferForm);
+  document.getElementById('btnCancelTransfer').addEventListener('click', () => { hideAssetForms(); renderAssets(); });
+  document.getElementById('btnDoTransfer').addEventListener('click', handleTransfer);
+  document.getElementById('assetList').addEventListener('click', e => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    if (btn.dataset.action === 'asset-set') {
+      const a = state.assets.find(x => x.id === id);
+      if (!a) return;
+      const val = prompt('把「' + a.name + '」余额设为（当前 ' + fmtMoney(a.balance) + '）：', a.balance);
+      if (val === null) return;
+      const num = parseFloat(val);
+      if (isNaN(num)) { showToast('无效金额'); return; }
+      setAssetBalance(id, num);
+      showToast('✅ 余额已更新');
+      renderAssets();
+      renderAssetOverview();
+      return;
+    }
+    if (btn.dataset.action === 'asset-edit') { showAssetForm(id); return; }
+    if (btn.dataset.action === 'asset-delete') {
+      const a = state.assets.find(x => x.id === id);
+      if (!confirm('确定删除账户「' + (a ? a.name : '') + '」？')) return;
+      deleteAsset(id);
+      showToast('已删除');
+      renderAssets();
+      renderAssetOverview();
+      renderAccountOptions();
+      return;
     }
   });
 
@@ -502,40 +552,94 @@ function setupEvents() {
   });
   // 云端同步按钮
   document.getElementById('settingsContent').addEventListener('click', e => {
-    if (e.target.id === 'btnSyncCreate') {
-      var statusEl = document.getElementById('syncStatus');
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const statusEl = document.getElementById('syncStatus');
+    const id = btn.id;
+
+    if (id === 'btnSyncCreate') {
+      if (!settings.gistToken) { showToast('请先在上方填写 GitHub Token'); return; }
       statusEl.textContent = '创建中...';
-      syncCreate(function(id) {
-        if (id) {
-          document.getElementById('settingSyncId').value = id;
-          settings.syncId = id;
-          saveSettings(settings);
-          statusEl.textContent = '✅ 已创建！';
-          showToast('☁️ 同步ID: ' + id.slice(0,12) + '... 填入另一设备即可');
+      syncCreate(function(gid) {
+        if (gid) {
+          showToast('☁️ 同步已创建，可用「复制连接码」连接另一台设备');
           initSync();
+          renderSettings();
         } else {
-          statusEl.textContent = '❌ 失败，检查网络后重试';
+          statusEl.textContent = '❌ 失败，检查 Token 与网络';
         }
       });
       return;
     }
-    if (e.target.id === 'btnSyncPull') {
-      var statusEl = document.getElementById('syncStatus');
-      if (!settings.syncId) { statusEl.textContent = '请先创建或填入同步ID'; return; }
+    if (id === 'btnSyncConnect') {
+      (async function() {
+        let code = '';
+        try { code = await navigator.clipboard.readText(); } catch(err) {}
+        if (!code || code.indexOf('DT4:') !== 0) {
+          code = prompt('请粘贴连接码：', '') || '';
+        }
+        if (!code) return;
+        const result = await importConnectionCode(code.trim());
+        if (result.ok) {
+          showToast('🔗 已连接，正在拉取数据...');
+          initSync();
+          syncDownload();
+          renderSettings();
+        } else {
+          showToast('❌ ' + result.error);
+        }
+      })();
+      return;
+    }
+    if (id === 'btnSyncCopyConn') {
+      (async function() {
+        const code = await exportConnectionCode();
+        try { await navigator.clipboard.writeText(code); showToast('📋 连接码已复制，在另一设备「连接同步」粘贴'); }
+        catch(err) { prompt('请手动复制连接码：', code); }
+      })();
+      return;
+    }
+    if (id === 'btnSyncPull') {
+      if (!settings.gistId) { showToast('请先新建或连接同步'); return; }
       statusEl.textContent = '下载中...';
-      syncDownload(function() {
-        statusEl.textContent = '✅ 下载完成 ' + new Date().toLocaleTimeString();
+      syncDownload(function(ok) {
+        statusEl.textContent = ok ? '✅ 下载完成' : '❌ 下载失败';
         setTimeout(function() { statusEl.textContent = ''; }, 3000);
       });
       return;
     }
-    if (e.target.id === 'btnSyncPush') {
-      var statusEl = document.getElementById('syncStatus');
-      if (!settings.syncId) { statusEl.textContent = '请先创建或填入同步ID'; return; }
+    if (id === 'btnSyncPush') {
+      if (!settings.gistId) { showToast('请先新建或连接同步'); return; }
       statusEl.textContent = '上传中...';
-      syncUpload();
-      statusEl.textContent = '✅ 上传完成 ' + new Date().toLocaleTimeString();
-      setTimeout(function() { statusEl.textContent = ''; }, 3000);
+      syncUpload(function(ok) {
+        statusEl.textContent = ok ? '✅ 上传完成' : '❌ 上传失败';
+        setTimeout(function() { statusEl.textContent = ''; }, 3000);
+      });
+      return;
+    }
+    if (id === 'btnSyncHistory') { renderSyncHistoryList(); return; }
+    if (id === 'btnSnapshotExport') { exportSnapshotsFile(); return; }
+    if (id === 'btnSnapshotList') { renderSnapshotList(); return; }
+
+    // 历史回滚
+    if (btn.dataset.action === 'sync-revert') {
+      if (!confirm('回滚到该历史版本？当前数据会被替换为那个时间点的云端数据。')) return;
+      syncRevert(btn.dataset.sha, function(ok) {
+        if (ok) { showToast('✅ 已回滚，正在拉取...'); syncDownload(); }
+        else showToast('❌ 回滚失败');
+      });
+      return;
+    }
+    // 快照恢复
+    if (btn.dataset.action === 'snapshot-restore') {
+      if (!confirm('恢复到此快照？当前数据会被替换。')) return;
+      if (restoreSnapshot(parseInt(btn.dataset.ts))) {
+        showToast('✅ 已恢复');
+        renderExpenseView(); renderTodoView(); updateTodoBadge();
+        if (typeof renderScheduleView === 'function') renderScheduleView();
+      } else {
+        showToast('❌ 恢复失败');
+      }
       return;
     }
   });
@@ -599,19 +703,23 @@ function setupEvents() {
     openHelp();
     moreMenu.style.display = 'none';
   });
+  document.getElementById('btnCheckUpdate').addEventListener('click', (e) => {
+    e.stopPropagation();
+    moreMenu.style.display = 'none';
+    if (typeof checkForUpdate === 'function') checkForUpdate();
+  });
   document.getElementById('btnCloseHelp').addEventListener('click', closeHelp);
   document.getElementById('helpOverlay').addEventListener('click', closeHelp);
   // 复制同步码
   document.getElementById('btnCopySync').addEventListener('click', async (e) => {
     e.stopPropagation();
     moreMenu.style.display = 'none';
+    var code = await exportSyncCode();
     try {
-      var code = exportSyncCode();
       await navigator.clipboard.writeText(code);
       showToast('📋 同步码已复制（' + Math.round(code.length/1024) + 'KB），在另一设备粘贴即可');
     } catch(err) {
       // fallback：显示在 prompt 中
-      var code = exportSyncCode();
       prompt('请手动复制同步码（Cmd+C）：', code);
     }
   });
@@ -627,7 +735,7 @@ function setupEvents() {
       code = prompt('请粘贴同步码：', '') || '';
     }
     if (!code) return;
-    var result = importSyncCode(code.trim());
+    var result = await importSyncCode(code.trim());
     if (result.ok) {
       showToast('✅ 已同步：' + result.expenses + '账单 ' + result.todos + '待办 ' + result.schedules + '日程');
       renderExpenseView();
@@ -758,6 +866,44 @@ function setupEvents() {
   document.getElementById('btnCancelSchedule').addEventListener('click', closeScheduleModal);
   document.getElementById('scheduleOverlay').addEventListener('click', closeScheduleModal);
   document.getElementById('btnDeleteSchedule').addEventListener('click', handleDeleteSchedule);
+
+  // ---- 课程弹窗 ----
+  document.getElementById('btnAddCourse').addEventListener('click', () => openCourseModal(null));
+  document.getElementById('btnSaveCourse').addEventListener('click', handleSaveCourse);
+  document.getElementById('btnCancelCourse').addEventListener('click', closeCourseModal);
+  document.getElementById('courseOverlay').addEventListener('click', closeCourseModal);
+  document.getElementById('btnDeleteCourse').addEventListener('click', handleDeleteCourse);
+  document.getElementById('courseColorPicker').addEventListener('click', e => {
+    const opt = e.target.closest('[data-action="pick-course-color"]');
+    if (opt) setCourseColor(opt.dataset.color);
+  });
+  // 课表格子点击 → 编辑课程
+  document.getElementById('timetable').addEventListener('click', e => {
+    const item = e.target.closest('[data-action="edit-course"]');
+    if (!item) return;
+    openCourseModal(item.dataset.id);
+  });
+
+  // ---- 节次配置弹窗 ----
+  document.addEventListener('click', e => {
+    if (e.target.id === 'btnAddClassPeriod') {
+      openPeriodModal(null);
+      return;
+    }
+    const editBtn = e.target.closest('[data-action="edit-period"]');
+    if (editBtn) {
+      openPeriodModal(editBtn.dataset.id);
+      return;
+    }
+    const delBtn = e.target.closest('[data-action="delete-period"]');
+    if (delBtn) {
+      handleDeletePeriod(delBtn.dataset.id);
+      return;
+    }
+  });
+  document.getElementById('btnSavePeriod').addEventListener('click', handleSavePeriod);
+  document.getElementById('btnCancelPeriod').addEventListener('click', closePeriodModal);
+  document.getElementById('periodOverlay').addEventListener('click', closePeriodModal);
 
   // 重复模式切换 → 动态配置区
   document.getElementById('schedRepeatMode').addEventListener('change', renderRepeatConfig);

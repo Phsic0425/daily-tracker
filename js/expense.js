@@ -3,7 +3,7 @@
    ============================================ */
 
 function addExpense(record) {
-  state.expenses.push({
+  const rec = {
     id: genId(),
     type: record.type,
     amount: parseFloat(record.amount),
@@ -11,13 +11,41 @@ function addExpense(record) {
     note: record.note || '',
     date: record.date,
     image: record.image || null,
+    accountId: record.accountId || null,
     createdAt: new Date().toISOString(),
-  });
+    updatedAt: Date.now(),
+  };
+  state.expenses.push(rec);
+  // 资产联动：支出扣账户、收入进账户（asset.js 提供）
+  if (typeof applyExpenseToAsset === 'function' && record.accountId) {
+    applyExpenseToAsset(record.accountId, record.type, parseFloat(record.amount), record.note, record.date);
+  }
   saveData(state);
+}
+
+// 按末余额记账：只填「记完后还剩多少」，差值自动算成一笔支出/收入
+function addExpenseByBalance(accountId, endBalance, category, note, date) {
+  const a = state.assets.find(x => x.id === accountId);
+  if (!a) return { ok: false, error: '账户不存在' };
+  endBalance = Number(endBalance);
+  if (isNaN(endBalance)) return { ok: false, error: '请输入有效的末余额' };
+  const diff = Math.round((a.balance - endBalance) * 100) / 100;
+  if (diff === 0) return { ok: false, error: '余额未变化，无需记录' };
+  const type = diff > 0 ? 'expense' : 'income';
+  const amount = Math.abs(diff);
+  const cats = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  const cat = cats.find(c => c.key === category) ? category : 'other';
+  addExpense({ type, amount, category: cat, note, date, image: null, accountId });
+  // 修正浮点误差，让账户余额精确落在用户输入的末余额上（同一次操作内纠偏，不产生额外流水）
+  a.balance = Math.round(endBalance * 100) / 100;
+  touch(a);
+  saveData(state);
+  return { ok: true, type, amount };
 }
 
 function deleteExpense(id) {
   state.expenses = state.expenses.filter(e => e.id !== id);
+  markDeleted(id);
   saveData(state);
 }
 

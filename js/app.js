@@ -8,6 +8,7 @@
 let viewMonth = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
 let modalType = 'expense';
 let selectedCategory = 'food';
+let byBalanceMode = false;
 let completedCollapsed = false;
 let deferredPrompt = null;
 let pendingConfirmId = null;
@@ -29,7 +30,6 @@ let scheduleViewMode = settings.scheduleViewMode || 'month'; // 'month' | 'week'
 let scheduleEditId = null;
 let notificationPermission = 'default';
 let countdownTimer = null;
-let _waitingWorker = null; // 等待激活的新 Service Worker
 let collapsedParents = new Set(); // 折叠的父待办 ID 集合
 
 // ---- 全局函数（供 inline onclick 调用）----
@@ -94,24 +94,29 @@ function init() {
 
   setupEvents();
 
-  // Service Worker 注册 + 自动更新检测
+  // Service Worker 注册 + 全自动更新
   if ('serviceWorker' in navigator) {
+    // 新 SW 接管页面后自动刷新一次（全自动更新，无需清数据）
+    navigator.serviceWorker.addEventListener('controllerchange', function() {
+      if (swReloaded) return;
+      swReloaded = true;
+      window.location.reload();
+    });
+
     navigator.serviceWorker.register('sw.js').then(function(reg) {
-      // 检测到新版本正在安装
+      swRegistration = reg;
+      // 新版本被发现（无论是自动检查还是手动点击「检查更新」触发）
       reg.addEventListener('updatefound', function() {
-        var newWorker = reg.installing;
-        newWorker.addEventListener('statechange', function() {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            _waitingWorker = newWorker;
-            showUpdateBanner();
+        var installing = reg.installing;
+        if (!installing) return;
+        showToast('🔄 发现新版本，正在更新...');
+        installing.addEventListener('statechange', function() {
+          if (installing.state === 'installed') {
+            // 新 SW 已装完（sw.js 里已 skipWaiting，随后会自动 activate 并触发 controllerchange 刷新）
+            showToast('✅ 更新完成，即将刷新');
           }
         });
       });
-      // 如果已有等待中的 worker
-      if (reg.waiting) {
-        _waitingWorker = reg.waiting;
-        showUpdateBanner();
-      }
       // 定期检查更新（每小时）
       setInterval(function() { reg.update(); }, 3600000);
     }).catch(function() {});
@@ -160,38 +165,28 @@ function startCountdownTimer() {
   }, 1000);
 }
 
-// ---- 版本更新提示 ----
-function showUpdateBanner() {
-  // 避免重复显示
-  if (document.getElementById('updateBanner')) return;
-  var banner = document.createElement('div');
-  banner.id = 'updateBanner';
-  banner.className = 'update-banner';
-  banner.innerHTML = '<span>🔄 有新版本可用</span><button class="btn btn-sm btn-primary" id="btnDoUpdate">立即更新</button>';
-  document.body.appendChild(banner);
-  document.getElementById('btnDoUpdate').addEventListener('click', function() {
-    // 通知等待中的新 SW 跳过等待
-    if (_waitingWorker) {
-      // 等新 SW 接管页面后再刷新，避免刷新太快仍加载旧缓存
-      var reloaded = false;
-      navigator.serviceWorker.addEventListener('controllerchange', function() {
-        if (!reloaded) { reloaded = true; window.location.reload(); }
-      });
-      _waitingWorker.postMessage({ type: 'SKIP_WAITING' });
-      // 兜底：300ms 后强制刷新（防止 controllerchange 未触发）
-      setTimeout(function() {
-        if (!reloaded) { reloaded = true; window.location.reload(); }
-      }, 300);
-    }
-  });
-}
+// ---- 版本更新（全自动）----
+let swReloaded = false;
+let swRegistration = null;
 
-// SW 消息处理
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('message', function(e) {
-    if (e.data && e.data.type === 'UPDATE_READY') {
-      showUpdateBanner();
-    }
+// 手动检查更新（更多菜单「🔄 检查更新」）
+function checkForUpdate() {
+  if (!('serviceWorker' in navigator)) { showToast('当前环境不支持 Service Worker'); return; }
+  navigator.serviceWorker.getRegistration().then(function(reg) {
+    if (!reg) { showToast('应用尚未安装 Service Worker'); return; }
+    swRegistration = reg;
+    showToast('🔄 正在检查更新...');
+    reg.update().then(function() {
+      // 有新版本时会触发 reg 的 updatefound 事件（app.js 里已监听，会弹「发现新版本/更新完成」提示并自动刷新）
+      // 这里只在确认没有新版本时兜底提示
+      setTimeout(function() {
+        if (!reg.waiting && !reg.installing) {
+          showToast('✅ 已是最新版本');
+        }
+      }, 1200);
+    }).catch(function() {
+      showToast('❌ 检查失败，请检查网络');
+    });
   });
 }
 

@@ -30,6 +30,21 @@ const PRIORITY_MAP = {
   low:    { label: '低', dot: 'low',    emoji: '🟢' },
 };
 
+// ========== 资产账户类型 ==========
+
+const ASSET_TYPES = [
+  { key: 'cash',   icon: '💵', name: '现金' },
+  { key: 'bank',   icon: '🏦', name: '银行卡' },
+  { key: 'card',   icon: '💳', name: '校园卡' },
+  { key: 'invest', icon: '📈', name: '投资' },
+  { key: 'gold',   icon: '🥇', name: '黄金' },
+  { key: 'other',  icon: '📦', name: '其他' },
+];
+
+function assetTypeByKey(key) {
+  return ASSET_TYPES.find(t => t.key === key) || { key, icon: '💰', name: key };
+}
+
 const STORAGE_KEY = 'daily_tracker_data';
 
 // ========== 日程常量 ==========

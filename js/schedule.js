@@ -28,12 +28,14 @@ function addSchedule(sched) {
     note: sched.note || '',
     color: sched.color || '#6366F1',
     createdAt: new Date().toISOString(),
+    updatedAt: Date.now(),
   });
   saveData(state);
 }
 
 function deleteSchedule(id) {
   state.schedules = state.schedules.filter(s => s.id !== id);
+  markDeleted(id);
   saveData(state);
 }
 
@@ -62,6 +64,7 @@ function updateSchedule(id, data) {
     note: data.note || '',
     color: data.color || '#6366F1',
   });
+  touch(sched);
   saveData(state);
 }
 
@@ -415,6 +418,8 @@ function getUpcomingSchedules(limit) {
   });
 
   // 排序，取前 limit 条
+  // 注意：课表（state.courses）不参与「即将到来」——课表本质是固定的每周安排，
+  // 不是待办事务，只在「课表」视图（course.js 的 renderTimetable）里展示。
   allUpcoming.sort((a, b) => a._datetime.localeCompare(b._datetime));
   return allUpcoming.slice(0, limit || 10);
 }
