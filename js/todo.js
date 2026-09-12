@@ -14,7 +14,6 @@ function addTodo(todo) {
     completed: false,
     completedAt: null,
     createdAt: new Date().toISOString(),
-    updatedAt: Date.now(),
     parentId: todo.parentId || null,
   });
   saveData(state);
@@ -31,7 +30,6 @@ function toggleTodo(id) {
 
   todo.completed = !todo.completed;
   todo.completedAt = todo.completed ? new Date().toISOString() : null;
-  touch(todo);
   saveData(state);
   return 'ok';
 }
@@ -41,7 +39,6 @@ function togglePinTodo(id) {
   if (!todo) return;
   todo.pinned = !todo.pinned;
   if (todo.pinned) todo.order = Date.now();
-  touch(todo);
   saveData(state);
 }
 
@@ -49,7 +46,6 @@ function deleteTodo(id) {
   // 同时删除所有子待办
   const idsToDelete = new Set([id]);
   collectDescendantIds(id, idsToDelete);
-  idsToDelete.forEach(markDeleted);
   state.todos = state.todos.filter(t => !idsToDelete.has(t.id));
   saveData(state);
 }
@@ -58,7 +54,6 @@ function updateTodoNote(id, note) {
   const todo = state.todos.find(t => t.id === id);
   if (!todo) return;
   todo.note = note;
-  touch(todo);
   saveData(state);
 }
 
@@ -104,7 +99,6 @@ function forceCompleteWithChildren(parentId) {
   if (!todo) return;
   todo.completed = true;
   todo.completedAt = new Date().toISOString();
-  touch(todo);
   // 递归完成所有未完成的子待办
   const children = state.todos.filter(t => t.parentId === parentId);
   children.forEach(c => {
@@ -201,7 +195,6 @@ function saveTodoEdit(id) {
     var priEl = body.querySelector('.todo-edit-priority');
     if (dateEl) todo.deadline = dateEl.value;
     if (priEl) todo.priority = priEl.value;
-    touch(todo);
     saveData(state);
     showToast('待办已更新 ✓');
   }

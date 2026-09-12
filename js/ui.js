@@ -7,7 +7,6 @@
 
 function renderExpenseView() {
   renderSummary();
-  renderAssetOverview();
   renderTemplates();
   renderCategoryBreakdown();
   renderExpenseList();
@@ -364,32 +363,9 @@ function openExpenseModal() {
   pendingImage = null;
   updateCameraButton();
 
-  byBalanceMode = false;
-  document.getElementById('chkByBalance').checked = false;
-  document.getElementById('inputEndBalance').value = '';
-
   updateTypeToggle();
   renderCategoryOptions();
-  renderAccountOptions();
-  updateByBalanceUI();
   document.getElementById('inputAmount').focus();
-}
-
-// ---- 按余额记账 ----
-
-function updateByBalanceUI() {
-  document.getElementById('inputAmount').closest('.amount-input-wrapper').style.display = byBalanceMode ? 'none' : '';
-  document.getElementById('byBalanceRow').style.display = byBalanceMode ? '' : 'none';
-  document.getElementById('categoryGrid').style.display = byBalanceMode ? 'none' : '';
-  refreshByBalanceHint();
-}
-
-function refreshByBalanceHint() {
-  const hintEl = document.getElementById('byBalanceHint');
-  if (!hintEl) return;
-  const accountId = document.getElementById('inputAccount').value;
-  const a = state.assets.find(x => x.id === accountId);
-  hintEl.textContent = a ? ('当前余额 ' + fmtMoney(a.balance)) : '当前余额 —';
 }
 
 function closeExpenseModal() {
@@ -426,7 +402,6 @@ function renderScheduleView() {
 
   var calendarGrid = document.getElementById('calendarGrid');
   var weekView = document.getElementById('weekView');
-  var timetableView = document.getElementById('timetableView');
   var upcomingSection = document.getElementById('upcomingSection');
   var dayDetailSection = document.getElementById('dayDetailSection');
   var btnExport = document.getElementById('btnExportSched');
@@ -438,27 +413,14 @@ function renderScheduleView() {
     b.classList.toggle('active', b.dataset.mode === scheduleViewMode);
   });
 
-  if (scheduleViewMode === 'timetable') {
-    // 课表模式：周一到周日课程格子
-    calendarGrid.style.display = 'none';
-    weekView.style.display = 'none';
-    upcomingSection.style.display = 'none';
-    dayDetailSection.style.display = 'none';
-    if (btnExport) btnExport.style.display = 'none';
-    if (btnPrev) btnPrev.style.display = 'none';
-    if (btnNext) btnNext.style.display = 'none';
-    timetableView.style.display = '';
-    document.getElementById('calendarTitle').textContent = '每周课表';
-    renderTimetable();
-  } else if (scheduleViewMode === 'week') {
+  if (scheduleViewMode === 'week') {
     // 周模式：日期条 + 选中日从早到晚详情
     calendarGrid.style.display = 'none';
     upcomingSection.style.display = 'none';
     dayDetailSection.style.display = 'none';
     if (btnExport) btnExport.style.display = 'none';
-    if (btnPrev) { btnPrev.style.display = ''; btnPrev.title = '上周'; }
-    if (btnNext) { btnNext.style.display = ''; btnNext.title = '下周'; }
-    timetableView.style.display = 'none';
+    if (btnPrev) btnPrev.title = '上周';
+    if (btnNext) btnNext.title = '下周';
     weekView.style.display = '';
     renderWeekView();
   } else {
@@ -467,9 +429,8 @@ function renderScheduleView() {
     upcomingSection.style.display = '';
     dayDetailSection.style.display = '';
     if (btnExport) btnExport.style.display = '';
-    if (btnPrev) { btnPrev.style.display = ''; btnPrev.title = '上月'; }
-    if (btnNext) { btnNext.style.display = ''; btnNext.title = '下月'; }
-    timetableView.style.display = 'none';
+    if (btnPrev) btnPrev.title = '上月';
+    if (btnNext) btnNext.title = '下月';
     weekView.style.display = 'none';
     renderCalendar(scheduleViewMonth.year, scheduleViewMonth.month);
     renderUpcoming();
@@ -576,14 +537,14 @@ function renderSettings() {
 
     <!-- ====== ☁️ 同步 ====== -->
     <div class="setting-block" id="settingBlockSync">
-      <div class="setting-block-title">☁️ 云端同步（GitHub Gist）</div>
+      <div class="setting-block-title">☁️ 云端同步</div>
       <div class="setting-desc" style="padding:0 4px 8px;font-size:0.75rem;color:var(--text-muted)">
-        数据存进你的私密 Gist，每次同步自动留历史可回滚。先在 GitHub 生成一个仅含 gist 权限的细粒度 token。
+        两台设备填入同一个同步ID即可自动同步。免注册、免费。
       </div>
       <div class="setting-item">
         <div class="setting-label">
           <span>自动同步</span>
-          <span class="setting-desc">保存时自动上传，每60秒下载</span>
+          <span class="setting-desc">保存时自动上传，每30秒下载</span>
         </div>
         <label class="switch-label">
           <input type="checkbox" id="settingSyncAuto" ${settings.syncAuto !== false ? 'checked' : ''}>
@@ -592,71 +553,22 @@ function renderSettings() {
       </div>
       <div class="setting-item">
         <div class="setting-label">
-          <span>Token</span>
-          <span class="setting-desc">GitHub 细粒度 token（仅 gist 权限）</span>
+          <span>同步ID</span>
+          <span class="setting-desc">两台设备填同一个ID</span>
         </div>
-        <input type="password" class="input" id="settingGistToken" value="${settings.gistToken || ''}" placeholder="ghp_..." style="flex:1;font-family:monospace;font-size:0.75rem">
-      </div>
-      <div class="setting-item">
-        <div class="setting-label">
-          <span>Gist ID</span>
-          <span class="setting-desc">自动生成，或粘贴连接码</span>
-        </div>
-        <input type="text" class="input" id="settingGistId" value="${settings.gistId || ''}" readonly style="flex:1;font-family:monospace;font-size:0.75rem">
+        <input type="text" class="input" id="settingSyncId" value="${settings.syncId || ''}" placeholder="点击「创建」生成" style="flex:1;font-family:monospace;font-size:0.75rem">
       </div>
       <div class="setting-item" style="justify-content:flex-start;gap:8px;flex-wrap:wrap">
-        ${!settings.gistId ? '<button class="btn btn-sm btn-primary" id="btnSyncCreate">✨ 新建同步</button>' : ''}
-        <button class="btn btn-sm" id="btnSyncConnect">🔗 连接同步</button>
-        ${settings.gistId ? '<button class="btn btn-sm" id="btnSyncCopyConn">📋 复制连接码</button>' : ''}
-        <button class="btn btn-sm" id="btnSyncPull">📥 下载</button>
-        <button class="btn btn-sm" id="btnSyncPush">📤 上传</button>
-        <button class="btn btn-sm" id="btnSyncHistory">📜 历史</button>
+        ${!settings.syncId ? '<button class="btn btn-sm btn-primary" id="btnSyncCreate">✨ 创建同步ID</button>' : ''}
+        <button class="btn btn-sm" id="btnSyncPull">📥 手动下载</button>
+        <button class="btn btn-sm" id="btnSyncPush">📤 手动上传</button>
         <span style="font-size:0.72rem;color:var(--text-muted)" id="syncStatus"></span>
       </div>
-      <div id="syncHistoryList" style="margin-top:8px"></div>
-      <div class="setting-subtitle" style="margin-top:8px">💾 本地快照（不依赖网络）</div>
-      <div class="setting-item" style="justify-content:flex-start;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-sm" id="btnSnapshotExport">📦 导出快照</button>
-        <button class="btn btn-sm" id="btnSnapshotList">↩️ 恢复快照</button>
-      </div>
-      <div id="snapshotList" style="margin-top:8px"></div>
     </div>
 
     <!-- ====== 📅 日程 ====== -->
     <div class="setting-block" id="settingBlockCalendar">
       <div class="setting-block-title">📅 日程</div>
-
-      <div class="setting-subtitle">🎓 学期（课表用）</div>
-      <div class="setting-item">
-        <div class="setting-label">
-          <span>开始日期</span>
-          <span class="setting-desc">用于计算「第几周」</span>
-        </div>
-        <input type="date" class="input" id="settingSemesterStart" value="${(state.semester && state.semester.startDate) || ''}" style="flex:1">
-      </div>
-      <div class="setting-item">
-        <div class="setting-label">
-          <span>结束日期</span>
-          <span class="setting-desc">选填</span>
-        </div>
-        <input type="date" class="input" id="settingSemesterEnd" value="${(state.semester && state.semester.endDate) || ''}" style="flex:1">
-      </div>
-      <div class="setting-item">
-        <div class="setting-label">
-          <span>周数校准</span>
-          <span class="setting-desc">调休/补课导致自然周数对不上时，手动加减</span>
-        </div>
-        <input type="number" class="input" id="settingSemesterWeekOffset" value="${(state.semester && state.semester.weekOffset) || 0}" step="1" style="flex:1;max-width:80px">
-      </div>
-
-      <div class="setting-subtitle">📚 节次配置（课表显示）</div>
-      <div class="setting-desc" style="padding:0 4px 8px;font-size:0.75rem;color:var(--text-muted)">
-        配置后可在添加课程时按节次选择，课表将以节次形式显示
-      </div>
-      <div id="classPeriodList" class="period-config-list">${renderClassPeriodList()}</div>
-      <div class="setting-item" style="justify-content:flex-start;gap:8px">
-        <button class="btn btn-sm btn-primary" id="btnAddClassPeriod">+ 添加节次</button>
-      </div>
 
       <div class="setting-item">
         <div class="setting-label">
@@ -726,18 +638,9 @@ function handleSaveSettings() {
   settings.showScheduleLabels = document.getElementById('settingShowScheduleLabels').checked;
   settings.compactSchedule = document.getElementById('settingCompactSchedule').checked;
   settings.syncAuto = document.getElementById('settingSyncAuto').checked;
-  var tokenEl = document.getElementById('settingGistToken');
-  if (tokenEl) settings.gistToken = tokenEl.value.trim();
-  // 学期（存进 state，随同步）
-  if (typeof saveSemester === 'function') {
-    const semStartEl = document.getElementById('settingSemesterStart');
-    const semEndEl = document.getElementById('settingSemesterEnd');
-    const semOffsetEl = document.getElementById('settingSemesterWeekOffset');
-    if (semStartEl) saveSemester({
-      startDate: semStartEl.value,
-      endDate: semEndEl ? semEndEl.value : '',
-      weekOffset: semOffsetEl ? semOffsetEl.value : 0,
-    });
+  var newSyncId = document.getElementById('settingSyncId').value.trim();
+  if (newSyncId !== settings.syncId) {
+    settings.syncId = newSyncId;
   }
   saveSettings(settings);
   // 应用同步
@@ -759,33 +662,16 @@ function handleSaveSettings() {
 }
 
 function handleSaveExpense() {
-  const date = document.getElementById('inputDate').value || today();
-  const note = document.getElementById('inputNote').value.trim();
-  const accountId = document.getElementById('inputAccount').value;
-
-  if (!accountId) { showToast('请先创建并选择账户'); closeExpenseModal(); openAssetModal(); return; }
-
-  if (byBalanceMode) {
-    const endBalanceStr = document.getElementById('inputEndBalance').value;
-    if (endBalanceStr === '') { showToast('请输入末余额'); document.getElementById('inputEndBalance').focus(); return; }
-    const result = addExpenseByBalance(accountId, parseFloat(endBalanceStr), 'other', note, date);
-    if (!result.ok) { showToast(result.error); return; }
-    lastAccountId = accountId;
-    renderExpenseView();
-    closeExpenseModal();
-    showToast((result.type === 'expense' ? '支出' : '收入') + '已记录 ✓ ' + fmtMoney(result.amount));
-    return;
-  }
-
   const amountStr = document.getElementById('inputAmount').value;
   const amount = parseFloat(amountStr);
+  const date = document.getElementById('inputDate').value || today();
+  const note = document.getElementById('inputNote').value.trim();
   const saveTpl = document.getElementById('chkSaveTemplate').checked;
 
   if (!amount || amount <= 0) { showToast('请输入有效金额'); document.getElementById('inputAmount').focus(); return; }
   if (!selectedCategory) { showToast('请选择分类'); return; }
 
-  lastAccountId = accountId;
-  addExpense({ type: modalType, amount, category: selectedCategory, note, date, image: pendingImage || null, accountId });
+  addExpense({ type: modalType, amount, category: selectedCategory, note, date, image: pendingImage || null });
 
   if (saveTpl) {
     const cats = getMergedCategories(modalType);
@@ -798,259 +684,3 @@ function handleSaveExpense() {
   closeExpenseModal();
   showToast(modalType === 'expense' ? '支出已记录 ✓' : '收入已记录 ✓');
 }
-
-// ========== 同步历史 / 本地快照 UI ==========
-
-function renderSyncHistoryList() {
-  const el = document.getElementById('syncHistoryList');
-  if (!el) return;
-  el.innerHTML = '<span style="font-size:0.72rem;color:var(--text-muted)">加载中...</span>';
-  syncHistory(function(list) {
-    if (!el) return;
-    if (!list.length) {
-      el.innerHTML = '<span style="font-size:0.72rem;color:var(--text-muted)">暂无云端历史</span>';
-      return;
-    }
-    el.innerHTML = list.slice(0, 20).map(function(h) {
-      const t = h.ts ? new Date(h.ts).toLocaleString() : '—';
-      return '<div class="setting-item" style="justify-content:space-between">' +
-        '<span style="font-size:0.72rem">' + t + '</span>' +
-        '<button class="btn btn-sm" data-action="sync-revert" data-sha="' + h.sha + '">回滚</button>' +
-        '</div>';
-    }).join('');
-  });
-}
-
-function renderSnapshotList() {
-  const el = document.getElementById('snapshotList');
-  if (!el) return;
-  const list = getSnapshots();
-  if (!list.length) {
-    el.innerHTML = '<span style="font-size:0.72rem;color:var(--text-muted)">暂无本地快照</span>';
-    return;
-  }
-  el.innerHTML = list.slice().reverse().map(function(s) {
-    const t = new Date(s.ts).toLocaleString();
-    return '<div class="setting-item" style="justify-content:space-between">' +
-      '<span style="font-size:0.72rem">' + t + '</span>' +
-      '<button class="btn btn-sm" data-action="snapshot-restore" data-ts="' + s.ts + '">恢复</button>' +
-      '</div>';
-  }).join('');
-}
-
-function exportSnapshotsFile() {
-  const list = getSnapshots();
-  if (!list.length) { showToast('暂无快照可导出'); return; }
-  const blob = new Blob([JSON.stringify(list, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'daily-tracker-snapshots-' + today() + '.json';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  showToast('📦 已导出 ' + list.length + ' 份快照');
-}
-
-// ========== 资产 ==========
-
-let lastAccountId = null;
-
-function renderAccountOptions() {
-  const sel = document.getElementById('inputAccount');
-  if (!sel) return;
-  if (!state.assets.length) {
-    sel.innerHTML = '<option value="">⚠️ 请先创建账户</option>';
-    return;
-  }
-  if (!state.assets.find(a => a.id === lastAccountId)) lastAccountId = state.assets[0].id;
-  sel.innerHTML = state.assets.map(a =>
-    '<option value="' + a.id + '"' + (a.id === lastAccountId ? ' selected' : '') + '>' +
-    (a.icon || '💰') + ' ' + escapeHtml(a.name) + ' · ' + fmtMoney(a.balance) +
-    '</option>'
-  ).join('');
-}
-
-function renderAssetOverview() {
-  try {
-    const totalEl = document.getElementById('assetTotal');
-    if (!totalEl) return;
-    totalEl.textContent = fmtMoney(getTotalAssets());
-    const changeEl = document.getElementById('assetChange');
-    if (changeEl) {
-      const { net } = getAssetChanges(viewMonth.year, viewMonth.month);
-      changeEl.textContent = (net >= 0 ? '本月 +' : '本月 ') + fmtMoney(net);
-      changeEl.style.color = net >= 0 ? 'var(--income)' : 'var(--expense)';
-    }
-    const chipsEl = document.getElementById('assetChips');
-    if (chipsEl) {
-      if (!state.assets.length) {
-        chipsEl.innerHTML = '<span class="empty-hint">还没有账户，点「管理」添加（农行卡/微信零钱/校园卡…）</span>';
-      } else {
-        chipsEl.innerHTML = state.assets.map(a =>
-          '<span class="asset-chip" data-asset-id="' + a.id + '">' +
-          (a.icon || '💰') + ' ' + escapeHtml(a.name) +
-          '<span class="asset-chip-balance">' + fmtMoney(a.balance) + '</span>' +
-          '</span>'
-        ).join('');
-      }
-    }
-  } catch(e) {
-    console.error('renderAssetOverview error:', e);
-  }
-}
-
-function renderAssets() {
-  const list = document.getElementById('assetList');
-  if (!list) return;
-  const totalEl = document.getElementById('assetModalTotal');
-  if (totalEl) totalEl.textContent = fmtMoney(getTotalAssets());
-
-  if (!state.assets.length) {
-    list.innerHTML = '<p class="empty-hint">还没有账户，点下方「添加账户」创建</p>';
-    return;
-  }
-  const prefix = viewMonth.year + '-' + String(viewMonth.month).padStart(2, '0');
-  list.innerHTML = state.assets.map(a => {
-    const t = assetTypeByKey(a.type);
-    const thisMonth = getAssetRecordList(a.id)
-      .filter(r => r.date && r.date.startsWith(prefix))
-      .reduce((s, r) => s + r.amount, 0);
-    return '<div class="asset-item" data-id="' + a.id + '">' +
-      '<div class="asset-item-icon">' + (a.icon || t.icon) + '</div>' +
-      '<div class="asset-item-info">' +
-        '<div class="asset-item-name">' + escapeHtml(a.name) + ' <span class="asset-type-badge">' + t.name + '</span></div>' +
-        '<div class="asset-item-meta">本月 ' + (thisMonth >= 0 ? '+' : '') + fmtMoney(thisMonth) + '</div>' +
-      '</div>' +
-      '<div class="asset-item-right">' +
-        '<div class="asset-item-balance">' + fmtMoney(a.balance) + '</div>' +
-        '<div class="asset-item-actions">' +
-          '<button class="btn btn-sm" data-action="asset-set" data-id="' + a.id + '">改余额</button>' +
-          '<button class="btn btn-sm" data-action="asset-edit" data-id="' + a.id + '">编辑</button>' +
-          '<button class="btn btn-sm" data-action="asset-delete" data-id="' + a.id + '" style="background:#F43F5E;color:#fff">删</button>' +
-        '</div>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-}
-
-function openAssetModal() {
-  document.getElementById('assetModal').classList.add('show');
-  document.getElementById('assetOverlay').classList.add('show');
-  document.body.style.overflow = 'hidden';
-  hideAssetForms();
-  renderAssets();
-}
-
-function closeAssetModal() {
-  document.getElementById('assetModal').classList.remove('show');
-  document.getElementById('assetOverlay').classList.remove('show');
-  document.body.style.overflow = '';
-  renderAssetOverview();
-  renderAccountOptions();
-}
-
-function hideAssetForms() {
-  document.getElementById('assetForm').style.display = 'none';
-  document.getElementById('transferForm').style.display = 'none';
-}
-
-let assetEditId = null;
-
-function showAssetForm(editId) {
-  assetEditId = editId || null;
-  document.getElementById('assetType').innerHTML = ASSET_TYPES.map(t =>
-    '<option value="' + t.key + '">' + t.icon + ' ' + t.name + '</option>'
-  ).join('');
-
-  const existing = editId ? state.assets.find(a => a.id === editId) : null;
-  document.getElementById('assetName').value = existing ? existing.name : '';
-  document.getElementById('assetIcon').value = existing ? (existing.icon || '') : '';
-  document.getElementById('assetBalance').value = existing ? existing.balance : '';
-  if (existing) {
-    document.getElementById('assetType').value = existing.type;
-    document.getElementById('assetBalance').placeholder = '余额（元，改了视为对账）';
-  } else {
-    document.getElementById('assetType').value = 'cash';
-    document.getElementById('assetBalance').placeholder = '初始余额（元）';
-  }
-  document.getElementById('transferForm').style.display = 'none';
-  document.getElementById('assetForm').style.display = '';
-}
-
-function showTransferForm() {
-  const opts = state.assets.map(a =>
-    '<option value="' + a.id + '">' + (a.icon || '💰') + ' ' + escapeHtml(a.name) + '</option>'
-  ).join('');
-  document.getElementById('transferFrom').innerHTML = opts;
-  document.getElementById('transferTo').innerHTML = opts;
-  if (state.assets.length >= 2) document.getElementById('transferTo').selectedIndex = 1;
-  document.getElementById('transferAmount').value = '';
-  document.getElementById('assetForm').style.display = 'none';
-  document.getElementById('transferForm').style.display = '';
-}
-
-function handleSaveAsset() {
-  const name = document.getElementById('assetName').value.trim();
-  if (!name) { showToast('请输入账户名称'); return; }
-  const type = document.getElementById('assetType').value;
-  const icon = document.getElementById('assetIcon').value.trim() || assetTypeByKey(type).icon;
-  const balanceVal = parseFloat(document.getElementById('assetBalance').value);
-
-  if (assetEditId) {
-    updateAsset(assetEditId, { name, type, icon });
-    if (!isNaN(balanceVal)) setAssetBalance(assetEditId, balanceVal, '编辑对账');
-  } else {
-    addAsset({ name, type, icon, balance: balanceVal || 0 });
-  }
-  showToast('✅ 账户已保存');
-  assetEditId = null;
-  hideAssetForms();
-  renderAssets();
-  renderAssetOverview();
-}
-
-function handleTransfer() {
-  const fromId = document.getElementById('transferFrom').value;
-  const toId = document.getElementById('transferTo').value;
-  const amount = parseFloat(document.getElementById('transferAmount').value);
-  if (!fromId || !toId) { showToast('请选择转出/转入账户'); return; }
-  if (!amount || amount <= 0) { showToast('请输入有效金额'); return; }
-  if (fromId === toId) { showToast('转出和转入账户不能相同'); return; }
-  transferAsset(fromId, toId, amount);
-  showToast('✅ 转账完成');
-  hideAssetForms();
-  renderAssets();
-  renderAssetOverview();
-}
-
-// ========== 节次配置 ==========
-
-function renderClassPeriodList() {
-  if (typeof getClassPeriods !== 'function') return '';
-  const periods = getClassPeriods();
-  if (periods.length === 0) {
-    return '<p class="empty-hint" style="margin:8px 0">暂无节次配置，添加后可在课程中按节次选择</p>';
-  }
-  let html = '';
-  periods.forEach(function(p) {
-    html += `<div class="period-config-item">
-      <div class="period-config-info">
-        <span class="period-config-name">${escapeHtml(p.name)}</span>
-        <span class="period-config-time">${p.startTime || ''} - ${p.endTime || ''}</span>
-      </div>
-      <div class="period-config-actions">
-        <button class="btn btn-sm" data-action="edit-period" data-id="${p.id}">编辑</button>
-        <button class="btn btn-sm" style="background:#F43F5E;color:#fff" data-action="delete-period" data-id="${p.id}">删除</button>
-      </div>
-    </div>`;
-  });
-  return html;
-}
-
-function refreshClassPeriodList() {
-  const container = document.getElementById('classPeriodList');
-  if (container) container.innerHTML = renderClassPeriodList();
-}
-

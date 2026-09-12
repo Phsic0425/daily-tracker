@@ -1,12 +1,12 @@
 // 改版本号强制刷新所有缓存（每次发布改动都要 +1，浏览器才能检测到新 SW）
-const CACHE = 'daily-tracker-v14';
+const CACHE = 'daily-tracker-v10';
 
 self.addEventListener('install', e => {
-  // 立即跳过等待，新版本装完就激活，页面收到 controllerchange 后自动刷新
-  self.skipWaiting();
+  // 不立即 skipWaiting，等用户主动更新
+  // self.skipWaiting();
 });
 
-// 收到页面消息后跳过等待（手动「检查更新」兜底）
+// 收到页面消息后跳过等待
 self.addEventListener('message', e => {
   if (e.data && e.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
@@ -24,16 +24,13 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// 网络优先策略：仅 HTML 导航强制 no-cache（确保页面最新），
-// 静态资源(js/css/图片)走默认缓存，避免每次刷新都重新下载大文件
+// 网络优先策略（cache:'no-cache' 绕过 HTTP 缓存，确保每次拿到最新文件）
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (!e.request.url.startsWith('http')) return;
 
-  var opt = e.request.mode === 'navigate' ? { cache: 'no-cache' } : {};
-
   e.respondWith(
-    fetch(e.request, opt).then(resp => {
+    fetch(e.request, { cache: 'no-cache' }).then(resp => {
       if (resp.ok && resp.type !== 'opaque') {
         const clone = resp.clone();
         caches.open(CACHE).then(c => c.put(e.request, clone));

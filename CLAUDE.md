@@ -10,76 +10,47 @@
 ```
 index.html              ← 所有 DOM 结构（弹窗、菜单、列表容器）
 style.css               ← 全部样式（移动端优先 + 深色模式）
-sw.js                   ← Service Worker（缓存策略 vN，全自动更新）
+sw.js                   ← Service Worker（缓存策略 v2）
 manifest.json           ← PWA 配置
 
 js/
-├── config.js           ← 常量：分类、ASSET_TYPES、SCHEDULE_COLORS、PRIORITY_MAP、STORAGE_KEY
+├── config.js           ← 常量：EXPENSE_CATEGORIES、INCOME_CATEGORIES、PRIORITY_MAP、STORAGE_KEY
 ├── utils.js            ← 纯函数：genId、today、fmtMoney、fmtDate、fmtDateShort、escapeHtml
-├── storage.js          ← 数据层 + 云同步：loadData、saveData、mergeStates、touch、markDeleted、Gist 后端、快照、同步码/连接码、导出导入
-├── expense.js          ← 记账 CRUD（含 accountId + 资产联动）
-├── todo.js             ← 待办 CRUD + 排序
-├── schedule.js         ← 日程 CRUD + 7 种重复规则 + 提醒 + 即将到来（不含课表——课表本质不是待办，只在课表视图展示）
-├── asset.js            ← 资产账户 CRUD + 记账联动 + 转账/对账 + 汇总
-├── course.js           ← 课表：课程/节次 CRUD + 学期/单双周 + 两种课表渲染（时间网格/节次网格）+ 课程/节次弹窗
-├── calendar.js         ← 日历/周视图渲染 + 日程弹窗
-├── templates.js        ← 快捷模板
-├── effects.js          ← 视觉：showToast、triggerConfetti 等
-├── help.js             ← 使用说明书
-├── report.js           ← 报表
-├── ui.js               ← 所有 DOM 渲染（含资产总览/资产管理、同步历史/快照 UI）
-├── events.js           ← 全部事件绑定
-└── app.js              ← 全局状态 + init 入口
+├── storage.js          ← 数据层：loadData、saveData、exportData、importData、loadSettings、saveSettings、全局变量 `state` + `settings`
+├── expense.js          ← 记账 CRUD：addExpense、deleteExpense、getMonthExpenses、getMonthSummary、getCategoryBreakdown
+├── todo.js             ← 待办 CRUD + 排序：addTodo、toggleTodo、deleteTodo、getActiveTodos、getCompletedTodos、getActiveCount、isOverdue、isDueSoon
+├── templates.js        ← 快捷模板：getTemplates、addTemplate、deleteTemplate、recordFromTemplate
+├── effects.js          ← 视觉：showToast、triggerConfetti、updateCameraButton、handleImageSelect、showImagePreview、clearPendingConfirm
+├── report.js           ← 报表：openReport、closeReport、renderReport（独立年月变量 reportYear/reportMonth）
+├── ui.js               ← 所有 DOM 渲染：记账视图、待办视图、模板、弹窗、分类统计
+├── events.js           ← 全部事件绑定：标签切换、月份导航、FAB、弹窗操作、CRUD 触发、批量删除、PWA 安装
+└── app.js              ← 全局状态 + 全局 onclick 函数 + init 入口
 ```
 
 ## 加载顺序（严格依赖链）
 
 ```
-config → utils → storage → expense → todo → schedule → asset → course → calendar → templates → effects → help → report → ui → events → app
+config → utils → storage → expense → todo → templates → effects → report → ui → events → app
 ```
 
 ## 数据模型
 
 ```js
 state = {
-  expenses:    [{ id, type, amount, category, note, date, image, accountId, createdAt, updatedAt }],
-  todos:       [{ id, title, deadline, priority, note, pinned, order, completed, completedAt, parentId, createdAt, updatedAt }],
-  templates:   [{ id, name, type, category, amount, note, createdAt, updatedAt }],
-  schedules:   [{ id, title, type, date, endDate, time, endTime, displayText, repeat, reminder, note, color, createdAt, updatedAt }],
-  assets:      [{ id, name, icon, type, balance, unit, quantity, price, createdAt, updatedAt }],
-  assetRecords:[{ id, accountId, kind, amount, note, date, createdAt, updatedAt }],   // kind: expense|income|transfer|set
-  courses:     [{ id, name, location, teacher, weekday, startTime, endTime, classPeriodIds, weeks:{start,end,parity}, color, note, createdAt, updatedAt }],
-  semester:    { name, startDate, endDate, weekOffset },  // weekOffset：手动周数校准（调休/补课导致自然周对不上时用）
-  classPeriods:[{ id, name, startTime, endTime, order, createdAt, updatedAt }],  // 节次配置
-  tombstones:  { '<id>': ts },   // 删除墓碑，供按记录合并使用
-  updatedAt:   <ms>,
+  expenses: [{ id, type, amount, category, note, date, image, createdAt }],
+  todos:    [{ id, title, deadline, priority, note, pinned, order, completed, completedAt, createdAt }],
+  templates:[{ id, name, type, category, amount, note }]
 }
 // 存于 localStorage key: 'daily_tracker_data'
 
 settings = {
-  dueSoonDays: 3,
-  showTimeStatus: true,
-  defaultSortMode: 'deadline',
-  sortAsc: true,
-  customExpenseCategories: [], customIncomeCategories: [],
-  deletedExpenseCategories: [], deletedIncomeCategories: [],
-  subTodoCollapsed: false, showLunar: true, showHolidays: true,
-  showScheduleLabels: true, compactSchedule: false,
-  scheduleViewMode: 'month',   // 'month' | 'week' | 'timetable'
-  syncAuto: true,
-  syncBackend: 'gist', gistToken: '', gistId: '',
+  dueSoonDays: 3,        // 距截止几天算临期（1-30）
+  showTimeStatus: true,  // 待办是否显示临期/超时边框
+  defaultSortMode: 'deadline', // 'deadline' | 'priority' | 'status'
+  sortAsc: true,         // true=升序(早→晚)
 }
 // 存于 localStorage key: 'daily_tracker_settings'
 ```
-
-## 云同步（GitHub Gist）
-
-- 后端抽象在 storage.js：`syncCreate` / `syncDownload` / `syncUpload` / `syncHistory` / `syncRevert`，用原生 `fetch` 调 GitHub Gist API（细粒度 token，`Authorization: Bearer`）。
-- 数据存为 secret gist 单文件 `daily-tracker-data.json`，每次 `PATCH` 产生一个 revision（天然历史存档）。
-- 同步策略 = **pull → merge → push**：拉远端 → `mergeStates` 按记录 `id + updatedAt` 合并（墓碑 `tombstones` 标记的 id 永久丢弃）→ 本地保存 → 推回。
-- `saveData` 在每次存盘时自动 `syncUpload`（`_syncBusy` 防重入）；`initSync` 每 60 秒 `syncDownload`。
-- 连接码（`exportConnectionCode`/`importConnectionCode`）用 gzip+base64 打包 `{backend, gistId, token}`，前缀 `DT4:`，供第二台设备「连接同步」。
-- 同步码（`exportSyncCode`/`importSyncCode`）传数据不含 token；本地快照存独立 key `daily_tracker_snapshots`（最多 30 份，不含图片）。
 
 ## 全局状态变量（app.js）
 
@@ -93,7 +64,6 @@ settings = {
 | `reportYear` / `reportMonth` | 报表独立年月 |
 | `pendingImage` | 暂存的截图 base64 |
 | `deferredPrompt` | PWA 安装事件对象 |
-| `byBalanceMode` | 记账弹窗是否处于「按余额记账」模式 |
 
 ## 关键工具函数签名
 
@@ -211,7 +181,6 @@ renderTodoView()
 - Service Worker 采用网络优先策略，旧版本清理在 activate 事件中
 - 每台设备 localStorage 独立，互不影响
 - 跨设备迁移数据用「导出/导入」功能（左下角 ⋯ 菜单）
-- **每次发布前必须同步递增两处版本号**：`sw.js` 里的 `const CACHE = 'daily-tracker-vN'` 和 `index.html` 里所有 `?v=N` 查询参数（manifest.json / style.css / lunar.min.js / 全部 js/*.js）。两处漏改任一处都会导致浏览器/PWA 判断资源未变化，用户端只能靠手动清缓存才能看到新版本
 
 ## 数据导出/导入
 

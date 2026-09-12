@@ -6,585 +6,434 @@
   <meta name="theme-color" content="#6366F1">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="鏃ュ父璁拌处">
-  <link rel="manifest" href="manifest.json?v=14">
+  <meta name="apple-mobile-web-app-title" content="日常记账">
+  <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
-  <title>鏃ュ父璁拌处</title>
-  <link rel="stylesheet" href="style.css?v=14">
-  <script src="js/lunar.min.js?v=14"></script>
+  <title>日常记账</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="js/lunar.min.js"></script>
 </head>
 <body>
   <div class="app">
-    <!-- 椤堕儴 -->
+    <!-- 顶部 -->
     <header class="header">
       <div class="header-left">
-        <h1 class="header-title">馃搾 鏃ュ父璁拌处 <span style="font-size:0.6rem;opacity:0.6;font-weight:400">v8</span></h1>
+        <h1 class="header-title">📒 日常记账 <span style="font-size:0.6rem;opacity:0.6;font-weight:400">v7</span></h1>
       </div>
       <div class="header-right">
-        <button class="btn-month" id="btnPrevMonth" title="涓婃湀">鈼€</button>
-        <input type="month" id="monthPicker" class="header-month-input" title="閫夋嫨鏈堜唤">
-        <button class="btn-month" id="btnNextMonth" title="涓嬫湀">鈻?/button>
+        <button class="btn-month" id="btnPrevMonth" title="上月">◀</button>
+        <input type="month" id="monthPicker" class="header-month-input" title="选择月份">
+        <button class="btn-month" id="btnNextMonth" title="下月">▶</button>
       </div>
     </header>
 
-    <!-- 鏍囩鏍?-->
+    <!-- 标签栏 -->
     <nav class="tabs">
       <button class="tab active" data-tab="expense">
-        <span class="tab-icon">馃挵</span><span>璁拌处</span>
+        <span class="tab-icon">💰</span><span>记账</span>
       </button>
       <button class="tab" data-tab="todo">
-        <span class="tab-icon">鉁?/span><span>寰呭姙</span>
+        <span class="tab-icon">✅</span><span>待办</span>
         <span class="tab-badge" id="todoBadge">0</span>
       </button>
       <button class="tab" data-tab="schedule">
-        <span class="tab-icon">馃搮</span><span>鏃ョ▼</span>
+        <span class="tab-icon">📅</span><span>日程</span>
       </button>
     </nav>
 
-    <!-- 涓诲唴瀹?-->
+    <!-- 主内容 -->
     <main class="main">
 
-      <!-- ====== 璁拌处椤甸潰 ====== -->
+      <!-- ====== 记账页面 ====== -->
       <section class="tab-content active" id="tabExpense">
-        <!-- 鏈堝害姹囨€诲崱鐗?-->
+        <!-- 月度汇总卡片 -->
         <div class="summary-row">
           <div class="summary-card income">
-            <span class="summary-label">鏀跺叆</span>
-            <span class="summary-value" id="sumIncome">楼0</span>
+            <span class="summary-label">收入</span>
+            <span class="summary-value" id="sumIncome">¥0</span>
           </div>
           <div class="summary-card expense">
-            <span class="summary-label">鏀嚭</span>
-            <span class="summary-value" id="sumExpense">楼0</span>
+            <span class="summary-label">支出</span>
+            <span class="summary-value" id="sumExpense">¥0</span>
           </div>
           <div class="summary-card balance">
-            <span class="summary-label">缁撲綑</span>
-            <span class="summary-value" id="sumBalance">楼0</span>
+            <span class="summary-label">结余</span>
+            <span class="summary-value" id="sumBalance">¥0</span>
           </div>
         </div>
 
-        <!-- 璧勪骇鎬昏 -->
-        <div class="section" id="assetSection">
-          <div class="section-header">
-            <span>馃挵 璧勪骇</span>
-            <button class="btn btn-sm" id="btnOpenAssets">绠＄悊</button>
-          </div>
-          <div class="asset-total-card">
-            <div class="asset-total-left">
-              <span class="asset-label">鎬昏祫浜?/span>
-              <span class="asset-total-value" id="assetTotal">楼0</span>
-            </div>
-            <span class="asset-change" id="assetChange"></span>
-          </div>
-          <div class="asset-chips" id="assetChips"></div>
-        </div>
-
-        <!-- 蹇嵎妯℃澘 -->
+        <!-- 快捷模板 -->
         <div class="section" id="templateSection">
           <div class="section-header">
-            <span>鈿?蹇嵎妯℃澘</span>
-            <button class="btn btn-sm btn-tpl-manage" id="btnTplManage" onclick="toggleTemplateManage()">绠＄悊</button>
+            <span>⚡ 快捷模板</span>
+            <button class="btn btn-sm btn-tpl-manage" id="btnTplManage" onclick="toggleTemplateManage()">管理</button>
           </div>
           <div class="template-scroll" id="templateList">
-            <p class="empty-hint" id="templateEmpty">鏆傛棤妯℃澘锛岃涓€绗旀椂鍙繚瀛樹负妯℃澘</p>
+            <p class="empty-hint" id="templateEmpty">暂无模板，记一笔时可保存为模板</p>
           </div>
         </div>
 
-        <!-- 鍒嗙被缁熻 -->
+        <!-- 分类统计 -->
         <div class="section">
           <div class="section-header">
-            <span>馃搳 鍒嗙被缁熻</span>
+            <span>📊 分类统计</span>
           </div>
           <div class="category-list" id="categoryBreakdown">
-            <p class="empty-hint">鏈湀鏆傛棤璁板綍</p>
+            <p class="empty-hint">本月暂无记录</p>
           </div>
         </div>
 
-        <!-- 璐﹀崟鍒楄〃 -->
+        <!-- 账单列表 -->
         <div class="section">
           <div class="section-header">
-            <span>馃搵 璐﹀崟鏄庣粏</span>
-            <button class="btn btn-sm btn-batch-del" id="btnBatchDel" onclick="toggleBatchDelete()">鎵归噺鍒犻櫎</button>
+            <span>📋 账单明细</span>
+            <button class="btn btn-sm btn-batch-del" id="btnBatchDel" onclick="toggleBatchDelete()">批量删除</button>
           </div>
           <div class="batch-actions" id="batchActions" style="display:none">
-            <button class="btn btn-sm btn-primary" id="btnSelectAll">鍏ㄩ€?/button>
-            <button class="btn btn-sm" id="btnDeleteSelected" style="background:#F43F5E;color:#fff">鍒犻櫎閫変腑</button>
-            <span class="batch-count" id="batchCount">宸查€?0 鏉?/span>
+            <button class="btn btn-sm btn-primary" id="btnSelectAll">全选</button>
+            <button class="btn btn-sm" id="btnDeleteSelected" style="background:#F43F5E;color:#fff">删除选中</button>
+            <span class="batch-count" id="batchCount">已选 0 条</span>
           </div>
           <div class="expense-list" id="expenseList">
-            <p class="empty-hint">鏆傛棤璁板綍锛岀偣鍙充笅瑙?+ 璁颁竴绗斿惂</p>
+            <p class="empty-hint">暂无记录，点右下角 + 记一笔吧</p>
           </div>
         </div>
       </section>
 
-      <!-- ====== 寰呭姙椤甸潰 ====== -->
+      <!-- ====== 待办页面 ====== -->
       <section class="tab-content" id="tabTodo">
-        <!-- 娣诲姞寰呭姙 -->
+        <!-- 添加待办 -->
         <form class="todo-form" id="todoForm">
-          <input type="text" class="input" id="todoTitle" placeholder="杈撳叆寰呭姙浜嬮」..." required autocomplete="off">
+          <input type="text" class="input" id="todoTitle" placeholder="输入待办事项..." required autocomplete="off">
           <div class="todo-form-row">
-            <input type="date" class="input" id="todoDeadline" required title="鎴鏃ユ湡">
-            <input type="text" class="input" id="todoNote" placeholder="澶囨敞锛堥€夊～锛? maxlength="100" autocomplete="off">
+            <input type="date" class="input" id="todoDeadline" required title="截止日期">
+            <input type="text" class="input" id="todoNote" placeholder="备注（选填）" maxlength="100" autocomplete="off">
           </div>
           <div class="todo-form-row">
             <select class="input" id="todoPriority">
-              <option value="high">馃敶 楂樹紭鍏?/option>
-              <option value="medium" selected>馃煛 涓紭鍏?/option>
-              <option value="low">馃煝 浣庝紭鍏?/option>
+              <option value="high">🔴 高优先</option>
+              <option value="medium" selected>🟡 中优先</option>
+              <option value="low">🟢 低优先</option>
             </select>
-            <button type="submit" class="btn btn-primary" id="btnTodoSubmit">娣诲姞</button>
+            <button type="submit" class="btn btn-primary" id="btnTodoSubmit">添加</button>
           </div>
           <div class="sub-todo-banner" id="subTodoBanner" style="display:none">
-            <span>馃搸 姝ｅ湪娣诲姞瀛愪换鍔?/span>
-            <button type="button" class="btn btn-sm" id="btnExitSubTodo">鉁?閫€鍑?/button>
+            <span>📎 正在添加子任务</span>
+            <button type="button" class="btn btn-sm" id="btnExitSubTodo">✕ 退出</button>
           </div>
         </form>
 
-        <!-- 杩涜涓?-->
+        <!-- 进行中 -->
         <div class="section">
           <div class="section-header">
-            <span>馃搶 杩涜涓?/span>
+            <span>📌 进行中</span>
             <span class="section-count" id="activeCount">0</span>
             <div class="sort-mode-group">
-              <button class="sort-mode-btn active" data-sort="deadline" title="鎸夋埅姝㈡棩鏈熸帓搴?>馃搮</button>
-              <button class="sort-mode-btn" data-sort="priority" title="鎸変紭鍏堢骇鎺掑簭">馃敶</button>
-              <button class="sort-dir-btn" id="btnSortDir" title="鍒囨崲姝ｅ簭/鍊掑簭">鈫?/button>
+              <button class="sort-mode-btn active" data-sort="deadline" title="按截止日期排序">📅</button>
+              <button class="sort-mode-btn" data-sort="priority" title="按优先级排序">🔴</button>
+              <button class="sort-dir-btn" id="btnSortDir" title="切换正序/倒序">↓</button>
             </div>
-            <button class="btn btn-sm btn-batch-del" id="btnTodoBatchDel" onclick="toggleTodoBatchDelete()">鎵归噺鍒犻櫎</button>
+            <button class="btn btn-sm btn-batch-del" id="btnTodoBatchDel" onclick="toggleTodoBatchDelete()">批量删除</button>
           </div>
           <div class="batch-actions" id="todoBatchActions" style="display:none">
-            <button class="btn btn-sm btn-primary" id="btnTodoSelectAll">鍏ㄩ€?/button>
-            <button class="btn btn-sm" id="btnTodoDeleteSelected" style="background:#F43F5E;color:#fff">鍒犻櫎閫変腑</button>
-            <span class="batch-count" id="todoBatchCount">宸查€?0 鏉?/span>
+            <button class="btn btn-sm btn-primary" id="btnTodoSelectAll">全选</button>
+            <button class="btn btn-sm" id="btnTodoDeleteSelected" style="background:#F43F5E;color:#fff">删除选中</button>
+            <span class="batch-count" id="todoBatchCount">已选 0 条</span>
           </div>
           <div class="todo-list" id="activeTodoList">
-            <p class="empty-hint">娌℃湁寰呭姙锛屾坊鍔犱竴涓惂</p>
+            <p class="empty-hint">没有待办，添加一个吧</p>
           </div>
         </div>
 
-        <!-- 宸插畬鎴?-->
+        <!-- 已完成 -->
         <div class="section">
           <div class="section-header collapsible" id="completedHeader">
-            <span>鉁?宸插畬鎴?/span>
+            <span>✅ 已完成</span>
             <span class="section-count" id="completedCount">0</span>
-            <button class="btn btn-sm btn-batch-del" id="btnCompletedBatchDel" onclick="toggleCompletedBatchDelete()">鎵归噺鍒犻櫎</button>
-            <span class="collapse-arrow">鈻?/span>
+            <button class="btn btn-sm btn-batch-del" id="btnCompletedBatchDel" onclick="toggleCompletedBatchDelete()">批量删除</button>
+            <span class="collapse-arrow">▼</span>
           </div>
           <div class="batch-actions" id="completedBatchActions" style="display:none">
-            <button class="btn btn-sm btn-primary" id="btnCompletedSelectAll">鍏ㄩ€?/button>
-            <button class="btn btn-sm" id="btnCompletedDeleteSelected" style="background:#F43F5E;color:#fff">鍒犻櫎閫変腑</button>
-            <span class="batch-count" id="completedBatchCount">宸查€?0 鏉?/span>
+            <button class="btn btn-sm btn-primary" id="btnCompletedSelectAll">全选</button>
+            <button class="btn btn-sm" id="btnCompletedDeleteSelected" style="background:#F43F5E;color:#fff">删除选中</button>
+            <span class="batch-count" id="completedBatchCount">已选 0 条</span>
           </div>
           <div class="todo-list" id="completedTodoList"></div>
         </div>
       </section>
 
-      <!-- ====== 鏃ョ▼椤甸潰 ====== -->
+      <!-- ====== 日程页面 ====== -->
       <section class="tab-content" id="tabSchedule">
-        <!-- 鏃ュ巻澶撮儴 -->
+        <!-- 日历头部 -->
         <div class="cal-header">
           <div class="cal-mode" id="calModeSwitch">
-            <button class="cal-mode-btn" data-mode="month" id="btnCalModeMonth">鏈?/button>
-            <button class="cal-mode-btn" data-mode="week" id="btnCalModeWeek">鍛?/button>
-            <button class="cal-mode-btn" data-mode="timetable" id="btnCalModeTimetable">璇捐〃</button>
+            <button class="cal-mode-btn" data-mode="month" id="btnCalModeMonth">月</button>
+            <button class="cal-mode-btn" data-mode="week" id="btnCalModeWeek">周</button>
           </div>
-          <button class="btn-month" id="btnCalPrev" title="涓婃湀">鈼€</button>
-          <span class="cal-title" id="calendarTitle">2026骞?8鏈?/span>
-          <button class="btn-month" id="btnCalNext" title="涓嬫湀">鈻?/button>
-          <button class="btn btn-sm" id="btnCalToday" style="margin-left:8px">浠婂ぉ</button>
+          <button class="btn-month" id="btnCalPrev" title="上月">◀</button>
+          <span class="cal-title" id="calendarTitle">2026年 8月</span>
+          <button class="btn-month" id="btnCalNext" title="下月">▶</button>
+          <button class="btn btn-sm" id="btnCalToday" style="margin-left:8px">今天</button>
           <span class="section-count" id="calendarCount" style="margin-left:auto"></span>
-          <button class="btn btn-sm" id="btnExportSched" title="瀵煎嚭鏃ョ▼" style="margin-left:4px;font-size:0.7rem">馃摛</button>
-          <button class="btn btn-sm" id="btnCalSettings" title="鏃ュ巻璁剧疆" style="margin-left:2px;font-size:0.7rem">鈿欙笍</button>
+          <button class="btn btn-sm" id="btnExportSched" title="导出日程" style="margin-left:4px;font-size:0.7rem">📤</button>
+          <button class="btn btn-sm" id="btnCalSettings" title="日历设置" style="margin-left:2px;font-size:0.7rem">⚙️</button>
         </div>
 
-        <!-- 鏃ュ巻缃戞牸 -->
+        <!-- 日历网格 -->
         <div class="cal-grid" id="calendarGrid"></div>
 
-        <!-- 鍛ㄨ鍥?-->
+        <!-- 周视图 -->
         <div id="weekView" style="display:none">
           <div class="week-strip" id="weekStrip"></div>
           <div class="section" style="margin-top:12px">
             <div class="section-header">
-              <span id="weekDayTitle">馃搵 鏃ョ▼璇︽儏</span>
+              <span id="weekDayTitle">📋 日程详情</span>
             </div>
             <div class="sched-list" id="weekDayDetail"></div>
           </div>
         </div>
 
-        <!-- 璇捐〃瑙嗗浘 -->
-        <div id="timetableView" style="display:none">
-          <div class="tt-week-row">
-            <span class="tt-week-label" id="timetableWeekLabel"></span>
-            <button class="btn btn-sm" id="btnAddCourse">+ 娣诲姞璇剧▼</button>
-          </div>
-          <div class="tt-scroll" id="timetable"></div>
-        </div>
-
-        <!-- 鍗冲皢鍒版潵 -->
+        <!-- 即将到来 -->
         <div class="section" id="upcomingSection" style="margin-top:16px">
           <div class="section-header">
-            <span>鈴?鍗冲皢鍒版潵</span>
+            <span>⏰ 即将到来</span>
           </div>
           <div class="countdown-card" id="countdownDisplay">
-            <div class="cd-empty">馃帀 鏆傛棤寰呭姙鏃ョ▼</div>
+            <div class="cd-empty">🎉 暂无待办日程</div>
           </div>
           <div class="upcoming-list" id="upcomingContent"></div>
         </div>
 
-        <!-- 閫変腑鏃ユ湡璇︽儏 -->
+        <!-- 选中日期详情 -->
         <div class="section" id="dayDetailSection">
           <div class="section-header">
-            <span id="dayDetailTitle">馃搵 鏃ョ▼璇︽儏</span>
+            <span id="dayDetailTitle">📋 日程详情</span>
           </div>
           <div class="sched-list" id="scheduleDayDetail">
-            <p class="empty-hint">鐐瑰嚮鏃ュ巻鏃ユ湡鏌ョ湅鏃ョ▼</p>
+            <p class="empty-hint">点击日历日期查看日程</p>
           </div>
         </div>
       </section>
     </main>
 
-    <!-- 娴姩娣诲姞鎸夐挳 -->
-    <button class="fab" id="fabAdd" title="璁颁竴绗?>+</button>
+    <!-- 浮动添加按钮 -->
+    <button class="fab" id="fabAdd" title="记一笔">+</button>
 
-    <!-- 璁拌处寮圭獥锛堝簳閮ㄥ脊鍑猴級 -->
+    <!-- 记账弹窗（底部弹出） -->
     <div class="overlay" id="overlay"></div>
     <div class="modal" id="expenseModal">
       <div class="modal-handle"></div>
-      <h3 class="modal-title">璁颁竴绗?/h3>
+      <h3 class="modal-title">记一笔</h3>
 
-      <!-- 鏀舵敮绫诲瀷鍒囨崲 -->
+      <!-- 收支类型切换 -->
       <div class="type-toggle">
-        <button class="type-btn active" data-type="expense">馃敶 鏀嚭</button>
-        <button class="type-btn" data-type="income">馃煝 鏀跺叆</button>
+        <button class="type-btn active" data-type="expense">🔴 支出</button>
+        <button class="type-btn" data-type="income">🟢 收入</button>
       </div>
 
-      <!-- 閲戦 -->
+      <!-- 金额 -->
       <div class="amount-input-wrapper">
-        <span class="currency">楼</span>
+        <span class="currency">¥</span>
         <input type="number" class="amount-input" id="inputAmount"
                placeholder="0.00" step="0.01" min="0.01" inputmode="decimal">
         <input type="file" accept="image/*" capture="environment" id="inputImage" class="image-input-hidden">
-        <button type="button" class="btn-camera" id="btnCamera" title="鎷嶇収/涓婁紶鎴浘">馃摲</button>
+        <button type="button" class="btn-camera" id="btnCamera" title="拍照/上传截图">📷</button>
       </div>
 
-      <!-- 鎸変綑棰濊璐︼紙鍙煡閬撴湯浣欓锛屼笉鐭ラ亾鑺变簡澶氬皯锛?-->
-      <label class="tpl-check-label" id="byBalanceCheckLabel">
-        <input type="checkbox" id="chkByBalance"> 馃Ь 鎸変綑棰濊璐︼紙涓嶇煡閬撹姳浜嗗灏戯紝鍙煡閬撳墿澶氬皯锛?      </label>
-      <div class="amount-input-wrapper" id="byBalanceRow" style="display:none">
-        <span class="by-balance-hint" id="byBalanceHint">褰撳墠浣欓 鈥?/span>
-        <span class="currency">楼</span>
-        <input type="number" class="amount-input" id="inputEndBalance"
-               placeholder="鏈綑棰? step="0.01" inputmode="decimal">
-      </div>
-
-      <!-- 鎴浘棰勮 -->
+      <!-- 截图预览 -->
       <div class="img-preview-box" id="imgPreviewBox" style="display:none">
-        <img id="imgPreview" src="" alt="鎴浘">
-        <button type="button" class="img-remove-btn" id="btnRemoveImg">鉁?绉婚櫎</button>
-        <span class="img-hint">馃憜 瀵圭収鎴浘杈撳叆閲戦</span>
+        <img id="imgPreview" src="" alt="截图">
+        <button type="button" class="img-remove-btn" id="btnRemoveImg">✕ 移除</button>
+        <span class="img-hint">👆 对照截图输入金额</span>
       </div>
 
-      <!-- 鍒嗙被閫夋嫨 -->
+      <!-- 分类选择 -->
       <div class="category-grid" id="categoryGrid"></div>
 
-      <!-- 璐︽埛閫夋嫨 -->
-      <div class="form-row">
-        <select class="input" id="inputAccount" title="閫夋嫨璐︽埛"></select>
-      </div>
-
-      <!-- 鏃ユ湡涓庡娉?-->
+      <!-- 日期与备注 -->
       <div class="form-row">
         <input type="date" class="input" id="inputDate">
-        <input type="text" class="input" id="inputNote" placeholder="澶囨敞锛堥€夊～锛? maxlength="50">
+        <input type="text" class="input" id="inputNote" placeholder="备注（选填）" maxlength="50">
       </div>
 
-      <!-- 鎸夐挳 -->
+      <!-- 按钮 -->
       <label class="tpl-check-label" id="tplCheckLabel">
-        <input type="checkbox" id="chkSaveTemplate"> 鍚屾椂淇濆瓨涓哄揩鎹锋ā鏉?      </label>
-      <button class="btn btn-primary btn-block" id="btnSave">淇濆瓨</button>
-      <button class="btn btn-ghost btn-block" id="btnCancel">鍙栨秷</button>
+        <input type="checkbox" id="chkSaveTemplate"> 同时保存为快捷模板
+      </label>
+      <button class="btn btn-primary btn-block" id="btnSave">保存</button>
+      <button class="btn btn-ghost btn-block" id="btnCancel">取消</button>
     </div>
 
-    <!-- 鏃ョ▼寮圭獥 -->
+    <!-- 日程弹窗 -->
     <div class="overlay" id="scheduleOverlay"></div>
     <div class="modal" id="scheduleModal">
       <div class="modal-handle"></div>
-      <h3 class="modal-title" id="scheduleModalTitle">娣诲姞鏃ョ▼</h3>
+      <h3 class="modal-title" id="scheduleModalTitle">添加日程</h3>
 
-      <!-- 绫诲瀷鍒囨崲 -->
+      <!-- 类型切换 -->
       <div class="sched-type" id="schedTypeSwitch">
-        <button class="sched-type-btn active" data-type="event" id="btnSchedTypeEvent">馃搶 浜嬩欢</button>
-        <button class="sched-type-btn" data-type="background" id="btnSchedTypeBackground">馃棑 鑳屾櫙</button>
+        <button class="sched-type-btn active" data-type="event" id="btnSchedTypeEvent">📌 事件</button>
+        <button class="sched-type-btn" data-type="background" id="btnSchedTypeBackground">🗓 背景</button>
       </div>
 
-      <!-- 鏍囬 -->
-      <input type="text" class="input" id="schedTitle" placeholder="鏃ョ▼鏍囬" maxlength="50" style="margin-bottom:12px">
+      <!-- 标题 -->
+      <input type="text" class="input" id="schedTitle" placeholder="日程标题" maxlength="50" style="margin-bottom:12px">
 
-      <!-- 寮€濮?缁撴潫鏃ユ湡 -->
+      <!-- 开始/结束日期 -->
       <div class="form-row">
-        <input type="date" class="input" id="schedDate" title="寮€濮嬫棩鏈?>
-        <input type="date" class="input" id="schedEndDate" title="缁撴潫鏃ユ湡锛堥€夊～=鍗曞ぉ锛?>
+        <input type="date" class="input" id="schedDate" title="开始日期">
+        <input type="date" class="input" id="schedEndDate" title="结束日期（选填=单天）">
       </div>
 
-      <!-- 鏃堕棿锛堜粎浜嬩欢绫伙級 -->
+      <!-- 时间（仅事件类） -->
       <div class="form-row" id="eventTimeRow">
-        <input type="time" class="input" id="schedTime" title="寮€濮嬫椂闂?>
-        <input type="time" class="input" id="schedEndTime" title="缁撴潫鏃堕棿锛堥€夊～锛? placeholder="缁撴潫">
+        <input type="time" class="input" id="schedTime" title="开始时间">
+        <input type="time" class="input" id="schedEndTime" title="结束时间（选填）" placeholder="结束">
       </div>
 
-      <!-- 閲嶅瑙勫垯锛堜粎浜嬩欢绫伙紝璺ㄥぉ鏃堕殣钘忥級 -->
+      <!-- 重复规则（仅事件类，跨天时隐藏） -->
       <div id="repeatSection">
       <div class="setting-label" style="margin-bottom:6px">
-        <span>馃攣 閲嶅瑙勫垯</span>
+        <span>🔁 重复规则</span>
       </div>
       <select class="input" id="schedRepeatMode" style="margin-bottom:12px;width:100%"></select>
 
-      <!-- 閲嶅閰嶇疆鍖?-->
+      <!-- 重复配置区 -->
       <div class="repeat-configs">
-        <!-- 鑷畾涔夋鏁?-->
+        <!-- 自定义次数 -->
         <div class="form-row repeat-config-group" id="repeatCountGroup" style="display:none">
-          <label class="setting-label" style="flex:1"><span>閲嶅娆℃暟</span></label>
+          <label class="setting-label" style="flex:1"><span>重复次数</span></label>
           <input type="number" class="setting-num" id="schedRepeatCount" value="3" min="1" max="365" style="width:70px">
         </div>
-        <!-- 闂撮殧 -->
+        <!-- 间隔 -->
         <div class="form-row repeat-config-group" id="repeatIntervalGroup" style="display:none">
-          <label class="setting-label" style="flex:1"><span>闂撮殧锛堟瘡N澶?鍛?鏈堬級</span></label>
+          <label class="setting-label" style="flex:1"><span>间隔（每N天/周/月）</span></label>
           <input type="number" class="setting-num" id="schedRepeatInterval" value="1" min="1" max="30" style="width:70px">
         </div>
-        <!-- 缁撴潫鏃ユ湡 -->
+        <!-- 结束日期 -->
         <div class="form-row repeat-config-group" id="repeatEndDateGroup" style="display:none">
-          <label class="setting-label" style="flex:1"><span>缁撴潫鏃ユ湡锛堥€夊～锛?/span></label>
+          <label class="setting-label" style="flex:1"><span>结束日期（选填）</span></label>
           <input type="date" class="input" id="schedRepeatEndDate" style="flex:1">
         </div>
-        <!-- 姣忓懆閫夋嫨 -->
+        <!-- 每周选择 -->
         <div class="repeat-config-group" id="repeatWeekdaysGroup" style="display:none;margin-bottom:12px">
-          <label class="setting-label" style="margin-bottom:6px"><span>閫夋嫨鏄熸湡</span></label>
+          <label class="setting-label" style="margin-bottom:6px"><span>选择星期</span></label>
           <div class="weekday-checks" id="weekdayChecks"></div>
         </div>
-        <!-- 鍐滃巻閰嶇疆 -->
+        <!-- 农历配置 -->
         <div class="repeat-config-group" id="repeatLunarGroup" style="display:none;margin-bottom:12px">
           <div class="form-row">
             <select class="input" id="schedLunarMonth"></select>
             <select class="input" id="schedLunarDay"></select>
           </div>
           <label class="tpl-check-label" style="margin-top:4px">
-            <input type="checkbox" id="schedLunarLeap"> 闂版湀
+            <input type="checkbox" id="schedLunarLeap"> 闰月
           </label>
         </div>
       </div>
       </div>
 
-      <!-- 鎻愰啋锛堜粎浜嬩欢绫伙級 -->
+      <!-- 提醒（仅事件类） -->
       <div id="reminderSection">
       <div class="setting-label" style="margin-bottom:6px">
-        <span>馃敂 鎻愰啋</span>
+        <span>🔔 提醒</span>
       </div>
       <select class="input" id="schedReminder" style="margin-bottom:12px;width:100%"></select>
       </div>
 
-      <!-- 棰滆壊鏍囪 -->
+      <!-- 颜色标记 -->
       <div class="setting-label" style="margin-bottom:6px">
-        <span>馃帹 棰滆壊鏍囪</span>
+        <span>🎨 颜色标记</span>
       </div>
       <div class="color-picker" id="schedColorPicker"></div>
 
-      <!-- 鏃ュ巻鏄剧ず鏂囧瓧 -->
+      <!-- 日历显示文字 -->
       <div class="setting-label" style="margin-bottom:6px">
-        <span>馃摑 鏃ュ巻鏄剧ず鏂囧瓧</span>
-        <span class="setting-desc">鐣欑┖鍒欒嚜鍔ㄦ埅鍙栨爣棰樺墠4瀛?/span>
+        <span>📝 日历显示文字</span>
+        <span class="setting-desc">留空则自动截取标题前4字</span>
       </div>
-      <input type="text" class="input" id="schedDisplayText" placeholder="鏃ュ巻涓婃樉绀虹殑绠€鐭枃瀛楋紙閫夊～锛? maxlength="6" style="margin-bottom:12px">
+      <input type="text" class="input" id="schedDisplayText" placeholder="日历上显示的简短文字（选填）" maxlength="6" style="margin-bottom:12px">
 
-      <!-- 澶囨敞 -->
-      <input type="text" class="input" id="schedNote" placeholder="澶囨敞锛堥€夊～锛? maxlength="100" style="margin-bottom:16px;margin-top:4px">
+      <!-- 备注 -->
+      <input type="text" class="input" id="schedNote" placeholder="备注（选填）" maxlength="100" style="margin-bottom:16px;margin-top:4px">
 
-      <!-- 鎸夐挳 -->
-      <button class="btn btn-primary btn-block" id="btnSaveSchedule">淇濆瓨</button>
-      <button class="btn btn-block" style="background:#F43F5E;color:#fff;display:none" id="btnDeleteSchedule">鍒犻櫎鏃ョ▼</button>
-      <button class="btn btn-ghost btn-block" id="btnCancelSchedule">鍙栨秷</button>
-    </div>
-
-    <!-- 璇剧▼寮圭獥 -->
-    <div class="overlay" id="courseOverlay"></div>
-    <div class="modal" id="courseModal">
-      <div class="modal-handle"></div>
-      <h3 class="modal-title" id="courseModalTitle">娣诲姞璇剧▼</h3>
-
-      <input type="text" class="input" id="courseName" placeholder="璇剧▼鍚嶏紙濡?楂樼瓑鏁板锛? maxlength="30" style="margin-bottom:8px">
-      <div class="form-row">
-        <input type="text" class="input" id="courseLocation" placeholder="鍦扮偣锛堝 鏁欎笁401锛? maxlength="30">
-        <input type="text" class="input" id="courseTeacher" placeholder="鏁欏笀锛堥€夊～锛? maxlength="20">
-      </div>
-      <div class="form-row">
-        <select class="input" id="courseWeekday"></select>
-        <select class="input" id="courseParity">
-          <option value="all">姣忓懆</option>
-          <option value="odd">鍗曞懆</option>
-          <option value="even">鍙屽懆</option>
-        </select>
-      </div>
-
-      <!-- 鑺傛閫夋嫨锛堝鏋滄湁閰嶇疆锛?-->
-      <div id="coursePeriodSection" style="display:none;margin-bottom:12px">
-        <div class="setting-label" style="margin-bottom:6px">
-          <span>馃摎 閫夋嫨鑺傛</span>
-          <span class="setting-desc">鍙閫夎繛缁垨涓嶈繛缁殑鑺傛</span>
-        </div>
-        <div id="coursePeriodChecks" class="period-checks"></div>
-      </div>
-
-      <!-- 鏃堕棿閫夋嫨锛堝鏋滄病閰嶇疆鑺傛锛屾垨鑰呮墜鍔ㄦā寮忥級 -->
-      <div id="courseTimeSection">
-        <div class="form-row">
-          <input type="time" class="input" id="courseStartTime" title="寮€濮嬫椂闂?>
-          <input type="time" class="input" id="courseEndTime" title="缁撴潫鏃堕棿">
-        </div>
-      </div>
-
-      <div class="form-row">
-        <input type="number" class="input" id="courseWeekStart" value="1" min="1" title="璧峰鍛?>
-        <input type="number" class="input" id="courseWeekEnd" value="16" min="1" title="缁撴潫鍛?>
-      </div>
-      <div class="setting-label" style="margin-bottom:6px"><span>馃帹 棰滆壊鏍囪</span></div>
-      <div class="color-picker" id="courseColorPicker"></div>
-      <input type="text" class="input" id="courseNote" placeholder="澶囨敞锛堥€夊～锛? maxlength="50" style="margin-bottom:16px;margin-top:8px">
-      <button class="btn btn-primary btn-block" id="btnSaveCourse">淇濆瓨</button>
-      <button class="btn btn-block" style="background:#F43F5E;color:#fff;display:none" id="btnDeleteCourse">鍒犻櫎璇剧▼</button>
-      <button class="btn btn-ghost btn-block" id="btnCancelCourse">鍙栨秷</button>
-    </div>
-
-    <!-- 璧勪骇绠＄悊寮圭獥 -->
-    <div class="overlay" id="assetOverlay"></div>
-    <div class="modal" id="assetModal">
-      <div class="modal-handle"></div>
-      <h3 class="modal-title">馃挵 璧勪骇绠＄悊</h3>
-
-      <div class="asset-summary-bar">
-        <span>鎬昏祫浜?/span>
-        <span class="asset-summary-value" id="assetModalTotal">楼0</span>
-      </div>
-
-      <div class="asset-list" id="assetList"></div>
-
-      <!-- 璐︽埛琛ㄥ崟锛堟坊鍔?缂栬緫锛?-->
-      <div class="asset-form" id="assetForm" style="display:none">
-        <input type="text" class="input" id="assetName" placeholder="璐︽埛鍚嶇О锛堝 鍐滆鍗★級" maxlength="20" style="margin-bottom:8px">
-        <div class="form-row">
-          <select class="input" id="assetType"></select>
-          <input type="text" class="input" id="assetIcon" placeholder="鍥炬爣 emoji" maxlength="2">
-        </div>
-        <input type="number" class="input" id="assetBalance" placeholder="鍒濆浣欓锛堝厓锛? inputmode="decimal" style="margin-bottom:8px">
-        <div class="form-row">
-          <button class="btn btn-primary btn-block" id="btnSaveAsset">淇濆瓨</button>
-          <button class="btn btn-ghost btn-block" id="btnCancelAssetForm">鍙栨秷</button>
-        </div>
-      </div>
-
-      <!-- 杞处琛ㄥ崟 -->
-      <div class="asset-form" id="transferForm" style="display:none">
-        <div class="form-row">
-          <select class="input" id="transferFrom"></select>
-          <select class="input" id="transferTo"></select>
-        </div>
-        <input type="number" class="input" id="transferAmount" placeholder="杞处閲戦锛堝厓锛? inputmode="decimal" style="margin-bottom:8px">
-        <div class="form-row">
-          <button class="btn btn-primary btn-block" id="btnDoTransfer">杞处</button>
-          <button class="btn btn-ghost btn-block" id="btnCancelTransfer">鍙栨秷</button>
-        </div>
-      </div>
-
-      <button class="btn btn-primary btn-block" id="btnShowAssetForm">+ 娣诲姞璐︽埛</button>
-      <button class="btn btn-ghost btn-block" id="btnShowTransfer">鈬?杞处</button>
-      <button class="btn btn-ghost btn-block" id="btnCloseAsset">鍏抽棴</button>
+      <!-- 按钮 -->
+      <button class="btn btn-primary btn-block" id="btnSaveSchedule">保存</button>
+      <button class="btn btn-block" style="background:#F43F5E;color:#fff;display:none" id="btnDeleteSchedule">删除日程</button>
+      <button class="btn btn-ghost btn-block" id="btnCancelSchedule">取消</button>
     </div>
 
     <!-- Toast -->
     <div class="toast" id="toast"></div>
 
-    <!-- 瀹夎鎻愮ず -->
+    <!-- 安装提示 -->
     <div class="install-banner" id="installBanner" style="display:none">
-      <span>馃摫 娣诲姞鍒颁富灞忓箷锛岄殢鏃惰璐?/span>
-      <button class="btn btn-sm btn-primary" id="btnInstall">瀹夎</button>
-      <button class="btn btn-sm btn-ghost" id="btnDismissInstall">鉁?/button>
+      <span>📱 添加到主屏幕，随时记账</span>
+      <button class="btn btn-sm btn-primary" id="btnInstall">安装</button>
+      <button class="btn btn-sm btn-ghost" id="btnDismissInstall">✕</button>
     </div>
 
-    <!-- 鏇村鑿滃崟鎸夐挳 -->
-    <button class="btn-more" id="btnMore" title="鏇村">
-      <span class="more-dots">鈰?/span>
-      <span class="more-label">鏇村</span>
+    <!-- 更多菜单按钮 -->
+    <button class="btn-more" id="btnMore" title="更多">
+      <span class="more-dots">⋯</span>
+      <span class="more-label">更多</span>
     </button>
     <div class="more-menu" id="moreMenu" style="display:none">
-      <button class="more-item" id="btnShowReport">馃搳 鎶ヨ〃</button>
-      <button class="more-item" id="btnShowSettings">鈿欙笍 璁剧疆</button>
-      <button class="more-item" id="btnCopySync">馃搵 澶嶅埗鍚屾鐮?/button>
-      <button class="more-item" id="btnPasteSync">馃搶 绮樿创鍚屾鐮?/button>
-      <button class="more-item" id="btnShowHelp">馃摉 浣跨敤璇存槑</button>
-      <button class="more-item" id="btnCheckUpdate">馃攧 妫€鏌ユ洿鏂?/button>
-      <button class="more-item" id="btnInstallEntry">馃摫 瀹夎搴旂敤</button>
+      <button class="more-item" id="btnShowReport">📊 报表</button>
+      <button class="more-item" id="btnShowSettings">⚙️ 设置</button>
+      <button class="more-item" id="btnCopySync">📋 复制同步码</button>
+      <button class="more-item" id="btnPasteSync">📌 粘贴同步码</button>
+      <button class="more-item" id="btnShowHelp">📖 使用说明</button>
+      <button class="more-item" id="btnInstallEntry">📱 安装应用</button>
     </div>
-    <!-- 鎶ヨ〃寮圭獥锛堝叏灞忥級 -->
+    <!-- 报表弹窗（全屏） -->
     <div class="modal-fullscreen" id="reportModal">
       <div class="report-header">
-        <button class="btn-month-report" id="btnReportPrevYear" title="涓婂勾">鈼€鈼€</button>
-        <button class="btn-month-report" id="btnReportPrev">鈼€</button>
-        <span class="report-year-title" id="reportTitle">馃搳 璐㈠姟鎶ュ憡</span>
-        <button class="btn-month-report" id="btnReportNext">鈻?/button>
-        <button class="btn-month-report" id="btnReportNextYear" title="涓嬪勾">鈻垛柖</button>
-        <button class="btn-report-close" id="btnCloseReport">鉁?/button>
+        <button class="btn-month-report" id="btnReportPrevYear" title="上年">◀◀</button>
+        <button class="btn-month-report" id="btnReportPrev">◀</button>
+        <span class="report-year-title" id="reportTitle">📊 财务报告</span>
+        <button class="btn-month-report" id="btnReportNext">▶</button>
+        <button class="btn-month-report" id="btnReportNextYear" title="下年">▶▶</button>
+        <button class="btn-report-close" id="btnCloseReport">✕</button>
       </div>
       <div class="report-content" id="reportContent"></div>
     </div>
 
-    <!-- 璇存槑涔﹀脊绐?-->
+    <!-- 说明书弹窗 -->
     <div class="overlay" id="helpOverlay"></div>
     <div class="modal" id="helpModal" style="max-height:90dvh;overflow-y:auto">
       <div class="modal-handle"></div>
-      <h3 class="modal-title">馃摉 浣跨敤璇存槑</h3>
+      <h3 class="modal-title">📖 使用说明</h3>
       <div class="help-content" id="helpContent"></div>
-      <button class="btn btn-ghost btn-block" id="btnCloseHelp">鍏抽棴</button>
+      <button class="btn btn-ghost btn-block" id="btnCloseHelp">关闭</button>
     </div>
 
-    <!-- 璁剧疆寮圭獥 -->
+    <!-- 设置弹窗 -->
     <div class="overlay" id="settingsOverlay"></div>
     <div class="modal" id="settingsModal">
       <div class="modal-handle"></div>
-      <h3 class="modal-title">鈿欙笍 璁剧疆</h3>
+      <h3 class="modal-title">⚙️ 设置</h3>
       <div class="settings-content" id="settingsContent"></div>
-      <button class="btn btn-ghost btn-block" id="btnCloseSettings">鍏抽棴</button>
+      <button class="btn btn-ghost btn-block" id="btnCloseSettings">关闭</button>
     </div>
 
-    <!-- 鑺傛缂栬緫寮圭獥 -->
-    <div class="overlay" id="periodOverlay"></div>
-    <div class="modal" id="periodModal">
-      <div class="modal-handle"></div>
-      <h3 class="modal-title" id="periodModalTitle">娣诲姞鑺傛</h3>
-      <input type="text" class="input" id="periodName" placeholder="鑺傛鍚嶇О锛堝 绗?鑺傦級" maxlength="20" style="margin-bottom:8px">
-      <div class="form-row">
-        <input type="time" class="input" id="periodStartTime" title="寮€濮嬫椂闂?>
-        <input type="time" class="input" id="periodEndTime" title="缁撴潫鏃堕棿">
-      </div>
-      <button class="btn btn-primary btn-block" id="btnSavePeriod">淇濆瓨</button>
-      <button class="btn btn-ghost btn-block" id="btnCancelPeriod">鍙栨秷</button>
-    </div>
-
-    <!-- 瀹屾垚鐗规晥 -->
+    <!-- 完成特效 -->
     <div class="confetti-container" id="confettiContainer"></div>
   </div>
 
-  <script src="js/config.js?v=14"></script>
-  <script src="js/utils.js?v=14"></script>
-  <script src="js/storage.js?v=14"></script>
-  <script src="js/expense.js?v=14"></script>
-  <script src="js/todo.js?v=14"></script>
-  <script src="js/schedule.js?v=14"></script>
-  <script src="js/asset.js?v=14"></script>
-  <script src="js/course.js?v=14"></script>
-  <script src="js/calendar.js?v=14"></script>
-  <script src="js/templates.js?v=14"></script>
-  <script src="js/effects.js?v=14"></script>
-  <script src="js/help.js?v=14"></script>
-  <script src="js/report.js?v=14"></script>
-  <script src="js/ui.js?v=14"></script>
-  <script src="js/events.js?v=14"></script>
-  <script src="js/app.js?v=14"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/expense.js"></script>
+  <script src="js/todo.js"></script>
+  <script src="js/schedule.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/templates.js"></script>
+  <script src="js/effects.js"></script>
+  <script src="js/help.js"></script>
+  <script src="js/report.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/events.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
