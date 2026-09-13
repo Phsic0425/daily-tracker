@@ -2465,7 +2465,7 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
 
 .course-block {
   position: absolute;
-  left: 2px; right: 2px;
+  box-sizing: border-box;
   border-radius: 6px;
   padding: 4px 5px;
   overflow: hidden;
@@ -2489,6 +2489,20 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
 .course-block-loc {
   font-size: 0.62rem;
   opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.course-block-time {
+  font-size: 0.6rem;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.course-block-weeks {
+  font-size: 0.58rem;
+  opacity: 0.8;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

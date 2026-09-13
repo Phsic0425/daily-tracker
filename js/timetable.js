@@ -81,6 +81,46 @@ function renderCourseGrid(weekNum, monday) {
   const totalHeight = (maxMin - minMin) * PX_PER_MIN;
   const byDay = getCoursesForWeek(weekNum);
 
+  // 同一天内时间重叠的块（课程/日程）并排显示，而不是互相盖住
+  function layoutOverlaps(items) {
+    const n = items.length;
+    const parent = items.map((_, i) => i);
+    function find(x) { while (parent[x] !== x) x = parent[x]; return x; }
+    function union(a, b) { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; }
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        if (items[i].start < items[j].end && items[j].start < items[i].end) union(i, j);
+      }
+    }
+    const clusters = {};
+    items.forEach((it, idx) => {
+      const root = find(idx);
+      (clusters[root] = clusters[root] || []).push(idx);
+    });
+    Object.values(clusters).forEach(idxs => {
+      idxs.sort((a, b) => items[a].start - items[b].start);
+      const columnsEnd = [];
+      idxs.forEach(idx => {
+        const it = items[idx];
+        let placed = false;
+        for (let c = 0; c < columnsEnd.length; c++) {
+          if (columnsEnd[c] <= it.start) {
+            it._col = c;
+            columnsEnd[c] = it.end;
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) {
+          it._col = columnsEnd.length;
+          columnsEnd.push(it.end);
+        }
+      });
+      idxs.forEach(idx => { items[idx]._totalCols = columnsEnd.length; });
+    });
+    return items;
+  }
+
   // ---- 表头 ----
   let headerHtml = '<div class="course-col-axis"></div>';
   dayDates.forEach((dateStr, i) => {
@@ -110,31 +150,55 @@ function renderCourseGrid(weekNum, monday) {
   dayDates.forEach((dateStr, i) => {
     const weekday = i + 1; // 1=周一 .. 7=周日
     const courses = byDay[weekday] || [];
-    let colHtml = '';
+    const items = [];
+
     courses.forEach(c => {
       const p1 = periods[c.startPeriod - 1];
       const p2 = periods[c.endPeriod - 1];
       if (!p1 || !p2) return;
-      const top = (timeToMinutes(p1.start) - minMin) * PX_PER_MIN;
-      const height = (timeToMinutes(p2.end) - timeToMinutes(p1.start)) * PX_PER_MIN;
-      colHtml += '<div class="course-block' + (c.active ? '' : ' dimmed') + '" ' +
-        'style="top:' + top + 'px;height:' + Math.max(height, 24) + 'px;background:' + c.color + '" ' +
-        'data-action="edit-course" data-id="' + c.id + '">' +
-        '<div class="course-block-name">' + escapeHtml(c.name) + '</div>' +
-        (c.location ? '<div class="course-block-loc">📍' + escapeHtml(c.location) + '</div>' : '') +
-        '</div>';
+      items.push({
+        start: timeToMinutes(p1.start),
+        end: timeToMinutes(p2.end),
+        html:
+          '<div class="course-block-name">' + escapeHtml(c.name) + '</div>' +
+          '<div class="course-block-time">' + p1.start + '-' + p2.end + '</div>' +
+          (c.location ? '<div class="course-block-loc">📍' + escapeHtml(c.location) + '</div>' : '') +
+          '<div class="course-block-weeks">第' + escapeHtml(formatWeeksText(c.weeks)) + '周</div>',
+        className: 'course-block' + (c.active ? '' : ' dimmed'),
+        style: 'background:' + c.color,
+        dataAttrs: 'data-action="edit-course" data-id="' + c.id + '"',
+      });
     });
 
     (daySchedules[i] || []).forEach(s => {
       const sMin = timeToMinutes(s.time);
       const eMin = s.endTime ? timeToMinutes(s.endTime) : sMin + 30;
-      const top = (sMin - minMin) * PX_PER_MIN;
-      const height = (eMin - sMin) * PX_PER_MIN;
-      colHtml += '<div class="course-block sched-block" ' +
-        'style="top:' + top + 'px;height:' + Math.max(height, 20) + 'px;border-left:3px solid ' + s.color + '" ' +
-        'data-action="edit-schedule-in-course" data-id="' + s.id + '" data-date="' + dateStr + '">' +
-        '<div class="course-block-name">🔔 ' + escapeHtml(s.title) + '</div>' +
-        '</div>';
+      items.push({
+        start: sMin,
+        end: eMin,
+        html:
+          '<div class="course-block-name">🔔 ' + escapeHtml(s.title) + '</div>' +
+          '<div class="course-block-time">' + s.time + (s.endTime ? '-' + s.endTime : '') + '</div>',
+        className: 'course-block sched-block',
+        style: 'border-left:3px solid ' + s.color,
+        dataAttrs: 'data-action="edit-schedule-in-course" data-id="' + s.id + '" data-date="' + dateStr + '"',
+      });
+    });
+
+    layoutOverlaps(items);
+
+    let colHtml = '';
+    items.forEach(it => {
+      const top = (it.start - minMin) * PX_PER_MIN;
+      const height = (it.end - it.start) * PX_PER_MIN;
+      const totalCols = it._totalCols || 1;
+      const col = it._col || 0;
+      const widthPct = 100 / totalCols;
+      const leftPct = col * widthPct;
+      colHtml += '<div class="' + it.className + '" ' +
+        'style="top:' + top + 'px;height:' + Math.max(height, 20) + 'px;' + it.style + ';' +
+        'left:calc(' + leftPct + '% + 2px);width:calc(' + widthPct + '% - 4px)" ' +
+        it.dataAttrs + '>' + it.html + '</div>';
     });
 
     const isToday = dateStr === todayStr;
