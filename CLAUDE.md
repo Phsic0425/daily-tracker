@@ -14,15 +14,22 @@ sw.js                   ← Service Worker（缓存策略 v2）
 manifest.json           ← PWA 配置
 
 js/
-├── config.js           ← 常量：EXPENSE_CATEGORIES、INCOME_CATEGORIES、PRIORITY_MAP、STORAGE_KEY
+├── lunar.min.js        ← 第三方农历库（唯一外部依赖，纯静态文件，非 npm）
+├── config.js           ← 常量：EXPENSE_CATEGORIES、INCOME_CATEGORIES、PRIORITY_MAP、STORAGE_KEY、ACCOUNT_TYPES、DEFAULT_PERIODS、COURSE_WEEKS_PRESETS
 ├── utils.js            ← 纯函数：genId、today、fmtMoney、fmtDate、fmtDateShort、escapeHtml
-├── storage.js          ← 数据层：loadData、saveData、exportData、importData、loadSettings、saveSettings、全局变量 `state` + `settings`
-├── expense.js          ← 记账 CRUD：addExpense、deleteExpense、getMonthExpenses、getMonthSummary、getCategoryBreakdown
+├── storage.js          ← 数据层：loadData、saveData、exportData、importData、loadSettings、saveSettings、云同步、全局变量 `state` + `settings`
+├── account.js          ← 账户 CRUD：getAccounts、getAccountById、getTotalAssets、addAccount、updateAccount、deleteAccount、adjustAccountBalance、applyExpenseToAccount、revertExpenseFromAccount
+├── expense.js          ← 记账 CRUD：addExpense、deleteExpense、getMonthExpenses、getMonthSummary、getCategoryBreakdown（记账时联动账户余额）
 ├── todo.js             ← 待办 CRUD + 排序：addTodo、toggleTodo、deleteTodo、getActiveTodos、getCompletedTodos、getActiveCount、isOverdue、isDueSoon
+├── schedule.js         ← 日程 CRUD + 重复规则展开：addSchedule/updateSchedule/deleteSchedule、expandRepeats 系列、getSchedulesForDate、getScheduledDatesInMonth、checkAndNotify（提醒通知）
+├── course.js           ← 课表数据层：parseWeeksText/formatWeeksText、getWeekNumberForDate、setCurrentWeekAnchor、updatePeriods、课程 CRUD、getCoursesForWeek
+├── calendar.js         ← 月历视图渲染 + 日程弹窗：renderCalendar、renderDayDetail、renderUpcoming、日程弹窗 open/close/save/delete、导出 JSON/图片
+├── timetable.js        ← 课表视图渲染 + 课程/周数/节次弹窗：renderCourseView、renderCourseGrid、课程弹窗、设置周数弹窗、节次设置弹窗
 ├── templates.js        ← 快捷模板：getTemplates、addTemplate、deleteTemplate、recordFromTemplate
 ├── effects.js          ← 视觉：showToast、triggerConfetti、updateCameraButton、handleImageSelect、showImagePreview、clearPendingConfirm
+├── help.js             ← 帮助文档：renderHelp、openHelp、closeHelp
 ├── report.js           ← 报表：openReport、closeReport、renderReport（独立年月变量 reportYear/reportMonth）
-├── ui.js               ← 所有 DOM 渲染：记账视图、待办视图、模板、弹窗、分类统计
+├── ui.js               ← 所有 DOM 渲染：记账视图、账户列表、待办视图、模板、弹窗、分类统计、日程视图切换
 ├── events.js           ← 全部事件绑定：标签切换、月份导航、FAB、弹窗操作、CRUD 触发、批量删除、PWA 安装
 └── app.js              ← 全局状态 + 全局 onclick 函数 + init 入口
 ```
@@ -30,16 +37,26 @@ js/
 ## 加载顺序（严格依赖链）
 
 ```
-config → utils → storage → expense → todo → templates → effects → report → ui → events → app
+config → utils → storage → account → expense → todo → schedule → course → calendar → timetable
+  → templates → effects → help → report → ui → events → app
 ```
 
 ## 数据模型
 
 ```js
 state = {
-  expenses: [{ id, type, amount, category, note, date, image, createdAt }],
+  expenses: [{ id, type, amount, category, note, date, image, accountId, createdAt }],
   todos:    [{ id, title, deadline, priority, note, pinned, order, completed, completedAt, createdAt }],
-  templates:[{ id, name, type, category, amount, note }]
+  templates:[{ id, name, type, category, amount, note }],
+  schedules:[{ id, title, date, time, repeatMode, repeatConfig, reminder, color, label, createdAt }],
+  accounts: [{ id, name, type, icon, balance, note, createdAt }],
+  courseSchedule: {
+    periods: [{ start, end }],      // 每节课起止时间 "HH:MM"，默认 12 节
+    currentWeek: 1,                 // 锚点：anchorDate 当天是第几周
+    anchorDate: '2026-08-01',       // 锚点日期，用于按周一起始推算任意日期的周数
+    courses: [{ id, name, location, weekday, startPeriod, endPeriod, weeks, color, createdAt }]
+    // weekday: 1-7（周一=1）；weeks: number[]，来自 parseWeeksText 或预设
+  }
 }
 // 存于 localStorage key: 'daily_tracker_data'
 
@@ -48,9 +65,14 @@ settings = {
   showTimeStatus: true,  // 待办是否显示临期/超时边框
   defaultSortMode: 'deadline', // 'deadline' | 'priority' | 'status'
   sortAsc: true,         // true=升序(早→晚)
+  scheduleViewMode: 'month', // 'month'=月视图 / 'course'=课表视图
 }
 // 存于 localStorage key: 'daily_tracker_settings'
 ```
+
+- `accountId` 为空字符串表示该笔记账未关联任何账户
+- 课程的“本周是否上课”由 `getCoursesForWeek(weekNum)` 实时计算（`weeks.includes(weekNum)`），不持久化 `active` 状态
+- 课表视图（`course`）与月历视图（`month`）互斥；课程本身不写入 `state.schedules`，也不出现在月历上；课表视图会调用 `getSchedulesForDate()` 把日程事件叠加渲染在时间轴上
 
 ## 全局状态变量（app.js）
 
@@ -64,6 +86,9 @@ settings = {
 | `reportYear` / `reportMonth` | 报表独立年月 |
 | `pendingImage` | 暂存的截图 base64 |
 | `deferredPrompt` | PWA 安装事件对象 |
+| `selectedAccountId` | 记账弹窗中单选选中的账户 id（空字符串=未选） |
+| `amountMode` | 记账金额输入方式 `'delta'`（变化量）/ `'final'`（末状态值） |
+| `accountManaging` | 账户管理删除模式开关 |
 
 ## 关键工具函数签名
 
@@ -81,6 +106,7 @@ settings = {
 ```
 renderExpenseView()          ← 主入口，各自独立 try-catch
   ├── renderSummary()        → #sumIncome, #sumExpense, #sumBalance
+  ├── renderAccountList()    → #accountList（总资产 + 账户卡片）
   ├── renderTemplates()      → #templateList（含管理模式横幅）
   ├── renderCategoryBreakdown() → #categoryBreakdown
   ├── renderExpenseList()    → #expenseList（按日期分组）
@@ -90,6 +116,10 @@ renderTodoView()
   ├── renderActiveTodos()    → #activeTodoList
   ├── renderCompletedTodos() → #completedTodoList
   └── updateTodoBadge()      → #todoBadge
+
+renderScheduleView()          ← 按 settings.scheduleViewMode 二选一
+  ├── 'month' → renderCalendar() + renderUpcoming()（calendar.js）
+  └── 'course' → renderCourseView() → renderCourseGrid()（timetable.js，叠加 getSchedulesForDate()）
 ```
 
 **重要**: 每个 render 函数都有独立 try-catch，一个失败不影响其他。
@@ -101,6 +131,9 @@ renderTodoView()
 #templateList click → [data-action="record-tpl"] 路由到 record/delete
 #activeTodoList click → [data-action] 路由到 todo-batch-check / pin-todo / toggle-todo / delete-todo
 #completedTodoList click → [data-action] 同上 + completed-batch-check
+#accountList click → #btnAddAccount 打开新增弹窗 / [data-action="edit-account"]（受 accountManaging 控制）
+#accountChipSelect click → 单选切换 selectedAccountId，重置 amountMode 为 'delta'
+#courseGrid click → [data-action="edit-course"] / [data-action="edit-schedule-in-course"]
 ```
 
 模板列表的特殊处理：管理模式下点击模板→删除确认，普通模式→一键记账。
@@ -121,6 +154,10 @@ renderTodoView()
 | `.modal-fullscreen` | 报表打开 | 全屏模态，从底部滑入 |
 | `.report-chart` | 报表渲染后 | Canvas 图表容器 |
 | `.cat-tag` / `.cat-tag-del` | 设置中分类管理 | 分类标签 + 删除按钮 |
+| `.account-chip.selected` | `selectedAccountId === id` | 蓝色边框高亮（单选） |
+| `.amount-mode-btn.active` | `amountMode` 当前值 | 分段控件高亮态 |
+| `.course-block.dimmed` | 课程本周不上课（`!active`） | 透明度降低 + 灰度，不隐藏 |
+| `.course-block.sched-block` | 日程事件叠加块 | 与课程块区分样式，仅课表视图渲染 |
 
 ## 调试指南
 
@@ -133,6 +170,10 @@ renderTodoView()
 | 弹窗行为异常 | `ui.js`（open/close/handleSaveExpense）+ `events.js`（弹窗事件） |
 | 样式问题 | `style.css`，注意文件中有紧凑风格，检查是否有重复规则 |
 | 月份切换不生效 | `events.js`（monthPicker 事件）+ `app.js`（viewMonth） |
+| 日程/重复规则不对 | `schedule.js`（expandRepeats 系列）|
+| 账户余额/总资产不对 | `account.js`（applyExpenseToAccount/revertExpenseFromAccount）+ `expense.js` 联动 |
+| 课表课程不显示或周数算错 | `course.js`（getWeekNumberForDate/getCoursesForWeek）+ `timetable.js`（renderCourseGrid） |
+| 课表里日程没叠加显示 | `timetable.js` 是否正确调用 `getSchedulesForDate()` |
 
 ## UX 要点
 
@@ -152,6 +193,11 @@ renderTodoView()
 - 数据导出/导入 → 💾/📥
 - **全屏报表** → 📊（月度/年度汇总 + Canvas 饼图/柱状图 + 趋势明细表）
 - **可配置分类**：设置中可新增/删除自定义收支分类，合并到默认分类中
+- **账户单选**：记账弹窗内账户选择是单选（`.account-chip`），再点同一账户会取消选中，不支持多账户联动一笔
+- **两种记账方式**：`amountMode='delta'` 直接填变化量（默认，行为与选账户前一致）；`amountMode='final'` 填末状态余额，保存时按 `delta = 输入值 - 账户当前余额` 反算，`delta===0` 会被拒绝保存
+- **课表周一起始**：课表视图按周一~周日排列，与月历的周日起始惯例不同，两套周计算逻辑（`getMondayOfWeek` vs 月历内部逻辑）互不影响
+- **课表周数锚点**：手动设置一次"某天是第几周"（`setCurrentWeekAnchor`），之后所有周数按该锚点线性推算，不需要每周手动更新
+- **课程虚化不隐藏**：非本周课程仍渲染在时间轴对应位置，只是加 `.dimmed` 降低视觉权重，方便看到整学期课表结构
 
 ## 不要做的事
 
@@ -184,8 +230,10 @@ renderTodoView()
 
 ## 数据导出/导入
 
-- `exportData()` — 序列化 `state` 为 JSON 文件下载（文件名含日期戳 `daily-tracker-backup-YYYY-MM-DD.json`）
-- `importData(jsonStr)` — 解析 JSON → 校验结构 → 替换 `state.expenses/todos/templates` → `saveData()` → 返回结果对象 `{ok, error?, counts?}`
+- `exportData()` — 序列化 `state` 为 JSON 文件下载（文件名含日期戳 `daily-tracker-backup-YYYY-MM-DD.json`），含 `expenses/todos/templates/schedules/accounts/courseSchedule`
+- `importData(jsonStr)` — 解析 JSON → 校验结构 → 替换 `state` 对应字段 → `saveData()` → 返回结果对象 `{ok, error?, counts?}`
+- 云同步（npoint.io）/ 同步码导出导入同样覆盖 `accounts`/`courseSchedule`（与 `schedules` 走同一套 pack/merge 逻辑）
+- **同步码分两种**：⋯ → 复制/粘贴同步码 = 全模块整体覆盖（`exportSyncCode`/`importSyncCode`）；⋯ → 分模块同步 = 可勾选只导出/导入部分模块（`exportSyncCodeModules`/`previewSyncCodeModules`/`importSyncCodeModules`，模块清单见 `SYNC_MODULES`），两者都是**整体覆盖对应字段，不做合并/去重**——导入会直接替换本设备该模块的数据
 - 入口：左下角 ⋯ 菜单 → 💾 导出数据 / 📥 导入数据
 - 导入后自动调用 `renderExpenseView()` + `renderTodoView()` + `updateTodoBadge()` 刷新界面
-- 容错：导入文件缺少字段时自动补空数组，不丢已有数据的其他字段
+- 容错：导入文件缺少字段时自动补空数组/默认对象，不丢已有数据的其他字段（`storage.js` 的 migration 逻辑会补全 `accounts`/`courseSchedule` 缺失字段）

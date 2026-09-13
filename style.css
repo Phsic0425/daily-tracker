@@ -2315,6 +2315,192 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
   to { transform: translateX(-50%) translateY(0); opacity: 1; }
 }
 
+/* ========== 账户选择（记账弹窗）========== */
+
+.account-chip-select {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.account-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.account-chip input { position: absolute; opacity: 0; pointer-events: none; }
+.account-chip.selected {
+  border-color: var(--primary);
+  background: var(--primary-bg);
+  color: var(--primary);
+}
+
+/* 记账方式切换：变化量 / 末状态值 */
+.amount-mode-toggle {
+  display: flex;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  margin-bottom: 8px;
+}
+.amount-mode-btn {
+  flex: 1;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: center;
+  transition: all var(--transition);
+}
+.amount-mode-btn.active {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+/* ========== 课表视图 ========== */
+
+.course-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.course-week-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--primary-bg);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+.course-toolbar .btn-primary { margin-left: auto; }
+
+.course-grid-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+}
+.course-grid {
+  min-width: 640px;
+}
+.course-grid-header {
+  display: grid;
+  grid-template-columns: 44px repeat(7, 1fr);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  z-index: 2;
+}
+.course-col-axis {
+  border-right: 1px solid var(--border);
+}
+.course-col-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 2px;
+  border-right: 1px solid var(--border);
+  gap: 2px;
+}
+.course-col-head:last-child { border-right: none; }
+.course-col-head.today { background: var(--primary-bg); color: var(--primary); }
+.course-col-weekday { font-size: 0.78rem; font-weight: 700; }
+.course-col-date { font-size: 0.68rem; color: var(--text-muted); }
+.course-col-head.today .course-col-date { color: var(--primary); }
+
+.course-grid-body {
+  display: grid;
+  grid-template-columns: 44px repeat(7, 1fr);
+  position: relative;
+}
+.course-axis-label {
+  position: absolute;
+  right: 4px;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  transform: translateY(-50%);
+}
+.course-col-body {
+  position: relative;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+}
+.course-col-body:last-child { border-right: none; }
+.course-col-body.today { background: var(--primary-bg); }
+
+.course-block {
+  position: absolute;
+  left: 2px; right: 2px;
+  border-radius: 6px;
+  padding: 4px 5px;
+  overflow: hidden;
+  color: #fff;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: opacity var(--transition);
+}
+.course-block.dimmed {
+  opacity: 0.32;
+  filter: grayscale(0.3);
+}
+.course-block-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.course-block-loc {
+  font-size: 0.62rem;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.course-block.sched-block {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+/* 节次时间设置弹窗 */
+.period-set-list {
+  max-height: 40vh;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+.period-set-row {
+  align-items: center;
+  margin-bottom: 8px;
+}
+.period-set-index {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  width: 48px;
+}
+.period-set-remove {
+  flex-shrink: 0;
+  width: 32px;
+  padding: 6px 0;
+}
+
 /* 深色模式支持 */
 @media (prefers-color-scheme: dark) {
   :root {
@@ -2353,13 +2539,15 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
   .cal-lunar { color: #64748B; }
   .cal-holiday { color: #F87171; background: #2D1518; }
   .cal-dot-more { color: #64748B; }
-  .week-day { background: #1E293B; }
-  .week-day.today { background: #1E1B4B; }
-  .week-day.selected { background: #2D2440; }
-  .week-day-num { color: #E2E8F0; }
-  .week-day.weekend .week-day-name,
-  .week-day.weekend .week-day-num { color: #F87171; }
-  .week-day.today.weekend .week-day-num { color: #fff; }
-  .week-time { color: #818CF8; }
-  .week-time.all-day { color: #94A3B8; }
+
+  /* 课表暗色模式 */
+  .course-col-head, .course-col-body { background: #1E293B; }
+  .course-col-head.today, .course-col-body.today { background: #1E1B4B; }
+  .course-axis-label { color: #94A3B8; }
+  .course-block { box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+  .course-block.sched-block { background: #1E293B; }
+
+  /* 账户选择暗色模式 */
+  .account-chip { background: var(--card); border-color: var(--border); }
+  .account-chip.selected { background: #1E1B4B; border-color: var(--primary); }
 }

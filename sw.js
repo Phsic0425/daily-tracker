@@ -1,5 +1,5 @@
 // 改版本号强制刷新所有缓存（每次发布改动都要 +1，浏览器才能检测到新 SW）
-const CACHE = 'daily-tracker-v10';
+const CACHE = 'daily-tracker-v12';
 
 self.addEventListener('install', e => {
   // 不立即 skipWaiting，等用户主动更新

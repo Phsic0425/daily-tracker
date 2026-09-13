@@ -100,6 +100,29 @@ function setupEvents() {
     selectedCategory = btn.dataset.cat;
     renderCategoryOptions();
   });
+
+  // ---- 记账弹窗：账户选择（单选） ----
+  document.getElementById('accountChipSelect').addEventListener('click', e => {
+    const chip = e.target.closest('.account-chip');
+    if (!chip) return;
+    e.preventDefault();
+    const id = chip.dataset.accountId;
+    selectedAccountId = (selectedAccountId === id) ? '' : id;
+    amountMode = 'delta';
+    renderAccountChipSelect();
+  });
+
+  // ---- 记账弹窗：变化量 / 末状态值切换 ----
+  document.getElementById('amountModeToggle').addEventListener('click', e => {
+    const btn = e.target.closest('.amount-mode-btn');
+    if (!btn) return;
+    amountMode = btn.dataset.mode;
+    updateAmountModeUI();
+  });
+  document.getElementById('inputAmount').addEventListener('input', () => {
+    if (selectedAccountId && amountMode === 'final') updateAmountModeUI();
+  });
+
   document.getElementById('btnSave').addEventListener('click', handleSaveExpense);
   document.getElementById('btnCancel').addEventListener('click', closeExpenseModal);
   document.getElementById('overlay').addEventListener('click', closeExpenseModal);
@@ -195,6 +218,26 @@ function setupEvents() {
     const tpl = getTemplates().find(t => t.id === id);
     if (tpl) recordFromTemplate(tpl);
   });
+
+  // ---- 账户列表点击（管理/添加） ----
+  document.getElementById('accountList').addEventListener('click', e => {
+    const addBtn = e.target.closest('#btnAddAccount');
+    if (addBtn) { openAccountModal(); return; }
+    const chip = e.target.closest('[data-action="edit-account"]');
+    if (!chip) return;
+    if (accountManaging) { openAccountModal(chip.dataset.accountId); return; }
+  });
+
+  // ---- 账户弹窗 ----
+  document.getElementById('accountTypeGrid').addEventListener('click', e => {
+    const btn = e.target.closest('.cat-option');
+    if (!btn) return;
+    setAccountFormType(btn.dataset.type);
+  });
+  document.getElementById('btnSaveAccount').addEventListener('click', handleSaveAccount);
+  document.getElementById('btnDeleteAccount').addEventListener('click', handleDeleteAccount);
+  document.getElementById('btnCancelAccount').addEventListener('click', closeAccountModal);
+  document.getElementById('accountOverlay').addEventListener('click', closeAccountModal);
 
   // ---- 待办批量删除操作 ----
   document.getElementById('btnTodoSelectAll').addEventListener('click', () => {
@@ -638,6 +681,29 @@ function setupEvents() {
       showToast('❌ ' + result.error);
     }
   });
+  // 分模块同步入口
+  document.getElementById('btnModuleSync').addEventListener('click', (e) => {
+    e.stopPropagation();
+    moreMenu.style.display = 'none';
+    openModuleSyncModal();
+  });
+  document.getElementById('btnCloseModuleSync').addEventListener('click', closeModuleSyncModal);
+  document.getElementById('moduleSyncOverlay').addEventListener('click', closeModuleSyncModal);
+  document.getElementById('moduleSyncExportList').addEventListener('change', (e) => {
+    const key = e.target.dataset.moduleExport;
+    if (!key) return;
+    if (e.target.checked) moduleSyncExportSelected.add(key);
+    else moduleSyncExportSelected.delete(key);
+  });
+  document.getElementById('btnModuleSyncExport').addEventListener('click', handleModuleSyncExport);
+  document.getElementById('btnModuleSyncParse').addEventListener('click', handleModuleSyncParse);
+  document.getElementById('moduleSyncImportList').addEventListener('change', (e) => {
+    const key = e.target.dataset.moduleImport;
+    if (!key) return;
+    if (e.target.checked) moduleSyncImportSelected.add(key);
+    else moduleSyncImportSelected.delete(key);
+  });
+  document.getElementById('btnModuleSyncImport').addEventListener('click', handleModuleSyncImport);
   // ========== 日程事件 ==========
 
   // ---- 日程视图模式切换（月/周）----
@@ -650,13 +716,12 @@ function setupEvents() {
     });
   });
 
-  // ---- 日历月份/周导航 ----
+  // ---- 日历月份/课表周导航 ----
   document.getElementById('btnCalPrev').addEventListener('click', () => {
-    if (scheduleViewMode === 'week') {
+    if (scheduleViewMode === 'course') {
       const d = new Date(scheduleSelectedDate + 'T00:00:00');
       d.setDate(d.getDate() - 7);
       scheduleSelectedDate = fmtDateStr(d);
-      scheduleViewMonth = { year: d.getFullYear(), month: d.getMonth() + 1 };
       renderScheduleView();
       return;
     }
@@ -665,11 +730,10 @@ function setupEvents() {
     renderScheduleView();
   });
   document.getElementById('btnCalNext').addEventListener('click', () => {
-    if (scheduleViewMode === 'week') {
+    if (scheduleViewMode === 'course') {
       const d = new Date(scheduleSelectedDate + 'T00:00:00');
       d.setDate(d.getDate() + 7);
       scheduleSelectedDate = fmtDateStr(d);
-      scheduleViewMonth = { year: d.getFullYear(), month: d.getMonth() + 1 };
       renderScheduleView();
       return;
     }
@@ -719,20 +783,45 @@ function setupEvents() {
     renderDayDetail(scheduleSelectedDate);
   });
 
-  // ---- 周视图日期条点击 ----
-  document.getElementById('weekStrip').addEventListener('click', e => {
-    const dayEl = e.target.closest('[data-action="select-week-day"]');
-    if (!dayEl) return;
-    scheduleSelectedDate = dayEl.dataset.date;
-    renderWeekView();
+  // ---- 课表视图：点击课程块编辑 / 点击日程块编辑 ----
+  document.getElementById('courseGrid').addEventListener('click', e => {
+    const courseEl = e.target.closest('[data-action="edit-course"]');
+    if (courseEl) { openCourseModal(courseEl.dataset.id); return; }
+    const schedEl = e.target.closest('[data-action="edit-schedule-in-course"]');
+    if (schedEl) { openScheduleModal(schedEl.dataset.date, schedEl.dataset.id); return; }
   });
 
-  // ---- 周视图详情：点击日程项编辑 ----
-  document.getElementById('weekDayDetail').addEventListener('click', e => {
-    const item = e.target.closest('[data-action="edit-schedule"]');
-    if (!item) return;
-    openScheduleModal(scheduleSelectedDate, item.dataset.id);
+  // ---- 课表工具栏 ----
+  document.getElementById('btnCourseAdd').addEventListener('click', () => openCourseModal());
+  document.getElementById('btnCourseWeekSet').addEventListener('click', () => openWeekSetModal());
+  document.getElementById('btnCoursePeriodSet').addEventListener('click', () => openPeriodSetModal());
+
+  // ---- 课程弹窗 ----
+  document.getElementById('courseWeeksPreset').addEventListener('change', handleCourseWeeksPresetChange);
+  document.getElementById('courseColorPicker').addEventListener('click', e => {
+    const opt = e.target.closest('[data-action="pick-course-color"]');
+    if (!opt) return;
+    setCourseColor(opt.dataset.color);
   });
+  document.getElementById('btnSaveCourse').addEventListener('click', handleSaveCourse);
+  document.getElementById('btnDeleteCourse').addEventListener('click', handleDeleteCourse);
+  document.getElementById('btnCancelCourse').addEventListener('click', closeCourseModal);
+  document.getElementById('courseOverlay').addEventListener('click', closeCourseModal);
+
+  // ---- 设置当前周数弹窗 ----
+  document.getElementById('btnSaveWeekSet').addEventListener('click', handleSaveWeekSet);
+  document.getElementById('btnCancelWeekSet').addEventListener('click', closeWeekSetModal);
+  document.getElementById('weekSetOverlay').addEventListener('click', closeWeekSetModal);
+
+  // ---- 节次时间设置弹窗 ----
+  document.getElementById('periodSetList').addEventListener('input', handlePeriodSetInput);
+  document.getElementById('periodSetList').addEventListener('click', e => {
+    if (e.target.closest('.period-set-remove')) handlePeriodSetRemove(e);
+  });
+  document.getElementById('btnAddPeriod').addEventListener('click', handleAddPeriod);
+  document.getElementById('btnSavePeriodSet').addEventListener('click', handleSavePeriodSet);
+  document.getElementById('btnCancelPeriodSet').addEventListener('click', closePeriodSetModal);
+  document.getElementById('periodSetOverlay').addEventListener('click', closePeriodSetModal);
 
   // ---- 选中日期详情：点击日程项编辑 ----
   document.getElementById('scheduleDayDetail').addEventListener('click', e => {

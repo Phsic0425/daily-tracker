@@ -62,6 +62,16 @@
           </div>
         </div>
 
+        <!-- 总资产 -->
+        <div class="section" id="accountSection">
+          <div class="section-header">
+            <span>💼 总资产</span>
+            <span class="summary-value" id="totalAssetsValue" style="margin-left:4px;font-size:0.95rem">¥0</span>
+            <button class="btn btn-sm btn-tpl-manage" id="btnAccountManage" onclick="toggleAccountManage()">管理</button>
+          </div>
+          <div class="template-scroll" id="accountList"></div>
+        </div>
+
         <!-- 快捷模板 -->
         <div class="section" id="templateSection">
           <div class="section-header">
@@ -168,7 +178,7 @@
         <div class="cal-header">
           <div class="cal-mode" id="calModeSwitch">
             <button class="cal-mode-btn" data-mode="month" id="btnCalModeMonth">月</button>
-            <button class="cal-mode-btn" data-mode="week" id="btnCalModeWeek">周</button>
+            <button class="cal-mode-btn" data-mode="course" id="btnCalModeCourse">课表</button>
           </div>
           <button class="btn-month" id="btnCalPrev" title="上月">◀</button>
           <span class="cal-title" id="calendarTitle">2026年 8月</span>
@@ -182,14 +192,16 @@
         <!-- 日历网格 -->
         <div class="cal-grid" id="calendarGrid"></div>
 
-        <!-- 周视图 -->
-        <div id="weekView" style="display:none">
-          <div class="week-strip" id="weekStrip"></div>
-          <div class="section" style="margin-top:12px">
-            <div class="section-header">
-              <span id="weekDayTitle">📋 日程详情</span>
-            </div>
-            <div class="sched-list" id="weekDayDetail"></div>
+        <!-- 课表视图 -->
+        <div id="courseView" style="display:none">
+          <div class="course-toolbar">
+            <span id="courseWeekLabel" class="course-week-label">第1周</span>
+            <button class="btn btn-sm" id="btnCourseWeekSet">设置周数</button>
+            <button class="btn btn-sm" id="btnCoursePeriodSet">节次设置</button>
+            <button class="btn btn-sm btn-primary" id="btnCourseAdd">+ 添加课程</button>
+          </div>
+          <div class="course-grid-wrap">
+            <div class="course-grid" id="courseGrid"></div>
           </div>
         </div>
 
@@ -249,6 +261,16 @@
 
       <!-- 分类选择 -->
       <div class="category-grid" id="categoryGrid"></div>
+
+      <!-- 账户选择（单选） -->
+      <div class="account-chip-select" id="accountChipSelect" style="display:none"></div>
+
+      <!-- 记账方式：变化量 / 末状态值（仅选中账户时显示） -->
+      <div class="amount-mode-toggle" id="amountModeToggle" style="display:none">
+        <button class="amount-mode-btn active" data-mode="delta" type="button">✏️ 输入变化量</button>
+        <button class="amount-mode-btn" data-mode="final" type="button">🎯 输入末状态值</button>
+      </div>
+      <div class="setting-desc" id="amountModePreview" style="display:none;margin-bottom:12px"></div>
 
       <!-- 日期与备注 -->
       <div class="form-row">
@@ -363,6 +385,81 @@
       <button class="btn btn-ghost btn-block" id="btnCancelSchedule">取消</button>
     </div>
 
+    <!-- 账户弹窗 -->
+    <div class="overlay" id="accountOverlay"></div>
+    <div class="modal" id="accountModal">
+      <div class="modal-handle"></div>
+      <h3 class="modal-title" id="accountModalTitle">添加账户</h3>
+
+      <div class="category-grid" id="accountTypeGrid"></div>
+
+      <input type="text" class="input" id="accountName" placeholder="账户名称" maxlength="20" style="margin-bottom:12px">
+      <input type="number" class="input" id="accountBalance" placeholder="初始余额" step="0.01" style="margin-bottom:12px">
+      <input type="text" class="input" id="accountNote" placeholder="备注（选填）" maxlength="50" style="margin-bottom:16px">
+
+      <button class="btn btn-primary btn-block" id="btnSaveAccount">保存</button>
+      <button class="btn btn-block" style="background:#F43F5E;color:#fff;display:none" id="btnDeleteAccount">删除账户</button>
+      <button class="btn btn-ghost btn-block" id="btnCancelAccount">取消</button>
+    </div>
+
+    <!-- 课程弹窗 -->
+    <div class="overlay" id="courseOverlay"></div>
+    <div class="modal" id="courseModal">
+      <div class="modal-handle"></div>
+      <h3 class="modal-title" id="courseModalTitle">添加课程</h3>
+
+      <input type="text" class="input" id="courseName" placeholder="课程名称" maxlength="30" style="margin-bottom:12px">
+      <input type="text" class="input" id="courseLocation" placeholder="上课地点（选填）" maxlength="30" style="margin-bottom:12px">
+
+      <div class="form-row">
+        <select class="input" id="courseWeekday"></select>
+        <select class="input" id="courseStartPeriod"></select>
+        <select class="input" id="courseEndPeriod"></select>
+      </div>
+
+      <div class="setting-label" style="margin-bottom:6px">
+        <span>📆 上课周数</span>
+      </div>
+      <select class="input" id="courseWeeksPreset" style="margin-bottom:8px;width:100%"></select>
+      <input type="text" class="input" id="courseWeeksCustom" placeholder="自定义周数，如 1-8,10,12-16" style="margin-bottom:12px">
+
+      <div class="setting-label" style="margin-bottom:6px">
+        <span>🎨 颜色标记</span>
+      </div>
+      <div class="color-picker" id="courseColorPicker"></div>
+
+      <input type="text" class="input" id="courseNote" placeholder="备注（选填）" maxlength="100" style="margin-bottom:16px;margin-top:4px">
+
+      <button class="btn btn-primary btn-block" id="btnSaveCourse">保存</button>
+      <button class="btn btn-block" style="background:#F43F5E;color:#fff;display:none" id="btnDeleteCourse">删除课程</button>
+      <button class="btn btn-ghost btn-block" id="btnCancelCourse">取消</button>
+    </div>
+
+    <!-- 设置当前周数弹窗 -->
+    <div class="overlay" id="weekSetOverlay"></div>
+    <div class="modal" id="weekSetModal">
+      <div class="modal-handle"></div>
+      <h3 class="modal-title">设置当前周数</h3>
+      <div class="setting-desc" style="margin-bottom:12px">手动输入一次"现在是第几周"，之后系统会根据日期自动推算</div>
+      <div class="form-row">
+        <input type="number" class="input" id="weekSetNum" min="1" max="53" placeholder="第几周">
+        <input type="date" class="input" id="weekSetDate" title="对应日期">
+      </div>
+      <button class="btn btn-primary btn-block" id="btnSaveWeekSet">保存</button>
+      <button class="btn btn-ghost btn-block" id="btnCancelWeekSet">取消</button>
+    </div>
+
+    <!-- 节次时间设置弹窗 -->
+    <div class="overlay" id="periodSetOverlay"></div>
+    <div class="modal" id="periodSetModal">
+      <div class="modal-handle"></div>
+      <h3 class="modal-title">节次对应时间设置</h3>
+      <div class="period-set-list" id="periodSetList"></div>
+      <button class="btn btn-sm" id="btnAddPeriod" style="margin-bottom:12px">+ 添加节次</button>
+      <button class="btn btn-primary btn-block" id="btnSavePeriodSet">保存</button>
+      <button class="btn btn-ghost btn-block" id="btnCancelPeriodSet">取消</button>
+    </div>
+
     <!-- Toast -->
     <div class="toast" id="toast"></div>
 
@@ -381,8 +478,9 @@
     <div class="more-menu" id="moreMenu" style="display:none">
       <button class="more-item" id="btnShowReport">📊 报表</button>
       <button class="more-item" id="btnShowSettings">⚙️ 设置</button>
-      <button class="more-item" id="btnCopySync">📋 复制同步码</button>
-      <button class="more-item" id="btnPasteSync">📌 粘贴同步码</button>
+      <button class="more-item" id="btnCopySync">📋 复制同步码（全部）</button>
+      <button class="more-item" id="btnPasteSync">📌 粘贴同步码（全部）</button>
+      <button class="more-item" id="btnModuleSync">🧩 分模块同步</button>
       <button class="more-item" id="btnShowHelp">📖 使用说明</button>
       <button class="more-item" id="btnInstallEntry">📱 安装应用</button>
     </div>
@@ -397,6 +495,25 @@
         <button class="btn-report-close" id="btnCloseReport">✕</button>
       </div>
       <div class="report-content" id="reportContent"></div>
+    </div>
+
+    <!-- 分模块同步弹窗 -->
+    <div class="overlay" id="moduleSyncOverlay"></div>
+    <div class="modal" id="moduleSyncModal" style="max-height:90dvh;overflow-y:auto">
+      <div class="modal-handle"></div>
+      <h3 class="modal-title">🧩 分模块同步</h3>
+
+      <div class="setting-label" style="margin-bottom:6px"><span>导出：勾选要导出的模块</span></div>
+      <div id="moduleSyncExportList" style="margin-bottom:12px"></div>
+      <button class="btn btn-primary btn-block" id="btnModuleSyncExport" style="margin-bottom:20px">📋 复制选中模块同步码</button>
+
+      <div class="setting-label" style="margin-bottom:6px"><span>导入：粘贴同步码后解析</span></div>
+      <textarea class="input" id="moduleSyncImportCode" placeholder="粘贴同步码" style="width:100%;height:60px;margin-bottom:8px;resize:vertical"></textarea>
+      <button class="btn btn-block" id="btnModuleSyncParse" style="margin-bottom:8px">🔍 解析同步码</button>
+      <div id="moduleSyncImportList" style="margin-bottom:8px"></div>
+      <button class="btn btn-primary btn-block" id="btnModuleSyncImport" style="display:none;margin-bottom:8px">✅ 导入选中模块（会覆盖本设备对应模块数据）</button>
+
+      <button class="btn btn-ghost btn-block" id="btnCloseModuleSync">关闭</button>
     </div>
 
     <!-- 说明书弹窗 -->
@@ -424,10 +541,13 @@
   <script src="js/config.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/account.js"></script>
   <script src="js/expense.js"></script>
   <script src="js/todo.js"></script>
   <script src="js/schedule.js"></script>
+  <script src="js/course.js"></script>
   <script src="js/calendar.js"></script>
+  <script src="js/timetable.js"></script>
   <script src="js/templates.js"></script>
   <script src="js/effects.js"></script>
   <script src="js/help.js"></script>

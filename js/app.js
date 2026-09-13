@@ -1,6 +1,7 @@
 /* ============================================
    app.js — 全局状态 & 入口
-   依赖顺序：config → utils → storage → expense → todo
+   依赖顺序：config → utils → storage → account → expense → todo
+            → schedule → course → calendar → timetable
             → templates → effects → report → ui → events → app
    ============================================ */
 
@@ -8,6 +9,9 @@
 let viewMonth = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
 let modalType = 'expense';
 let selectedCategory = 'food';
+let selectedAccountId = '';
+let amountMode = 'delta'; // 'delta'=输入变化量 | 'final'=输入末状态值
+let accountManaging = false;
 let completedCollapsed = false;
 let deferredPrompt = null;
 let pendingConfirmId = null;
@@ -25,7 +29,7 @@ let todoSortAsc = settings.sortAsc !== undefined ? settings.sortAsc : true; // t
 let reportYear, reportMonth; // 报表独立年月
 let scheduleViewMonth = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
 let scheduleSelectedDate = today();
-let scheduleViewMode = settings.scheduleViewMode || 'month'; // 'month' | 'week'
+let scheduleViewMode = (settings.scheduleViewMode === 'course') ? 'course' : 'month'; // 'month' | 'course'（旧版 'week' 视图已废弃，自动回退到月视图）
 let scheduleEditId = null;
 let notificationPermission = 'default';
 let countdownTimer = null;
@@ -37,6 +41,12 @@ function toggleTemplateManage() {
   tplManaging = !tplManaging;
   renderTemplates();
   showToast(tplManaging ? '🔧 模板管理模式：点击模板可删除' : '✅ 已退出管理模式');
+}
+
+function toggleAccountManage() {
+  accountManaging = !accountManaging;
+  renderAccountList();
+  showToast(accountManaging ? '🔧 账户管理模式：点击账户可编辑/删除' : '✅ 已退出管理模式');
 }
 
 function toggleBatchDelete() {

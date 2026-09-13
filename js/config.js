@@ -74,6 +74,58 @@ const REMINDER_OPTIONS = [
   { value: 1440, label: '提前1天' },
 ];
 
+// ========== 账户常量 ==========
+
+const ACCOUNT_TYPES = [
+  { key: 'bank',    icon: '💳', name: '银行卡' },
+  { key: 'cash',    icon: '💵', name: '现金' },
+  { key: 'virtual', icon: '📱', name: '虚拟账户' },
+  { key: 'transit', icon: '🚋', name: '交通/一卡通' },
+  { key: 'other',   icon: '📦', name: '其他' },
+];
+
+// ========== 课表常量 ==========
+
+// 周一到周日显示顺序（课表专用，独立于日历的周日起始约定）
+const WEEKDAY_NAMES_MON_START = ['一', '二', '三', '四', '五', '六', '日'];
+
+// 默认节次时间（可在设置中自定义）
+const DEFAULT_PERIODS = [
+  { start: '08:00', end: '08:45' },
+  { start: '08:55', end: '09:40' },
+  { start: '10:00', end: '10:45' },
+  { start: '10:55', end: '11:40' },
+  { start: '14:00', end: '14:45' },
+  { start: '14:55', end: '15:40' },
+  { start: '16:00', end: '16:45' },
+  { start: '16:55', end: '17:40' },
+  { start: '19:00', end: '19:45' },
+  { start: '19:55', end: '20:40' },
+  { start: '20:50', end: '21:35' },
+  { start: '21:45', end: '22:30' },
+];
+
+// ========== 同步模块 ==========
+
+// 分模块导出/导入同步码时可选的模块列表
+const SYNC_MODULES = [
+  { key: 'expenses',       icon: '💰', name: '记账账单' },
+  { key: 'todos',          icon: '✅', name: '待办事项' },
+  { key: 'templates',      icon: '⚡', name: '快捷模板' },
+  { key: 'schedules',      icon: '📅', name: '日程安排' },
+  { key: 'accounts',       icon: '💼', name: '账户/总资产' },
+  { key: 'courseSchedule', icon: '📚', name: '课表' },
+  { key: 'settings',       icon: '⚙️', name: '设置选项' },
+];
+
+// 上课周数预设
+const COURSE_WEEKS_PRESETS = [
+  { key: 'all',  label: '全部周（1-20）', text: '1-20' },
+  { key: 'odd',  label: '单周',           text: '1,3,5,7,9,11,13,15,17,19' },
+  { key: 'even', label: '双周',           text: '2,4,6,8,10,12,14,16,18,20' },
+  { key: 'custom', label: '自定义', text: '' },
+];
+
 // 合并默认分类和自定义分类（自定义优先覆盖同 key）
 function getMergedCategories(type) {
   const defaults = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;

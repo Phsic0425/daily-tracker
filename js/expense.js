@@ -3,7 +3,7 @@
    ============================================ */
 
 function addExpense(record) {
-  state.expenses.push({
+  const entry = {
     id: genId(),
     type: record.type,
     amount: parseFloat(record.amount),
@@ -11,12 +11,17 @@ function addExpense(record) {
     note: record.note || '',
     date: record.date,
     image: record.image || null,
+    accountId: record.accountId || '',
     createdAt: new Date().toISOString(),
-  });
+  };
+  state.expenses.push(entry);
+  if (typeof applyExpenseToAccount === 'function') applyExpenseToAccount(entry);
   saveData(state);
 }
 
 function deleteExpense(id) {
+  const entry = state.expenses.find(e => e.id === id);
+  if (entry && typeof revertExpenseFromAccount === 'function') revertExpenseFromAccount(entry);
   state.expenses = state.expenses.filter(e => e.id !== id);
   saveData(state);
 }

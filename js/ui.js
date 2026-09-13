@@ -7,10 +7,127 @@
 
 function renderExpenseView() {
   renderSummary();
+  renderAccountList();
   renderTemplates();
   renderCategoryBreakdown();
   renderExpenseList();
   updateHeaderMonth(); // 确保 header 月份始终同步
+}
+
+// ========== 总资产 / 账户 ==========
+
+let accountEditId = null;
+
+function openAccountModal(editId) {
+  accountEditId = editId || null;
+  const modal = document.getElementById('accountModal');
+  const overlay = document.getElementById('accountOverlay');
+  modal.classList.add('show');
+  overlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
+
+  renderAccountTypeGrid(editId ? getAccountById(editId).type : 'bank');
+
+  if (editId) {
+    const acc = getAccountById(editId);
+    document.getElementById('accountModalTitle').textContent = '编辑账户';
+    document.getElementById('accountName').value = acc.name;
+    document.getElementById('accountBalance').value = acc.balance;
+    document.getElementById('accountBalance').disabled = true;
+    document.getElementById('accountNote').value = acc.note || '';
+    document.getElementById('btnDeleteAccount').style.display = '';
+  } else {
+    document.getElementById('accountModalTitle').textContent = '添加账户';
+    document.getElementById('accountName').value = '';
+    document.getElementById('accountBalance').value = '';
+    document.getElementById('accountBalance').disabled = false;
+    document.getElementById('accountNote').value = '';
+    document.getElementById('btnDeleteAccount').style.display = 'none';
+  }
+}
+
+function closeAccountModal() {
+  document.getElementById('accountModal').classList.remove('show');
+  document.getElementById('accountOverlay').classList.remove('show');
+  document.body.style.overflow = '';
+  accountEditId = null;
+}
+
+let accountFormType = 'bank';
+function renderAccountTypeGrid(selected) {
+  accountFormType = selected || 'bank';
+  const grid = document.getElementById('accountTypeGrid');
+  grid.innerHTML = ACCOUNT_TYPES.map(t => `
+    <button class="cat-option${t.key === accountFormType ? ' selected' : ''}" data-type="${t.key}" type="button">
+      <span class="cat-emoji">${t.icon}</span>
+      <span>${t.name}</span>
+    </button>
+  `).join('');
+}
+
+function setAccountFormType(type) {
+  accountFormType = type;
+  renderAccountTypeGrid(type);
+}
+
+function handleSaveAccount() {
+  const name = document.getElementById('accountName').value.trim();
+  const balance = document.getElementById('accountBalance').value;
+  const note = document.getElementById('accountNote').value.trim();
+  if (!name) { showToast('请输入账户名称'); return; }
+
+  if (accountEditId) {
+    updateAccount(accountEditId, { name, type: accountFormType, note });
+  } else {
+    addAccount({ name, type: accountFormType, balance: balance || 0, note });
+  }
+  renderAccountList();
+  renderAccountChipSelect();
+  closeAccountModal();
+  showToast('账户已保存 ✓');
+}
+
+function handleDeleteAccount() {
+  if (!accountEditId) return;
+  if (!confirm('确定要删除这个账户吗？关联的记账记录会保留但解除账户关联。')) return;
+  deleteAccount(accountEditId);
+  if (selectedAccountId === accountEditId) selectedAccountId = '';
+  renderAccountList();
+  renderAccountChipSelect();
+  closeAccountModal();
+  showToast('账户已删除');
+}
+
+function renderAccountList() {
+  try {
+    const container = document.getElementById('accountList');
+    const totalEl = document.getElementById('totalAssetsValue');
+    const accounts = getAccounts();
+
+    if (totalEl) totalEl.textContent = fmtMoney(getTotalAssets());
+
+    const mgrBtn = document.getElementById('btnAccountManage');
+    if (mgrBtn) mgrBtn.textContent = accountManaging ? '完成' : '管理';
+
+    let html = '';
+    if (accounts.length === 0) {
+      html += '<p class="empty-hint">暂无账户，点击右侧 + 添加一个吧</p>';
+    } else {
+      if (accountManaging) {
+        html += '<div class="tpl-manage-banner">🔧 管理模式下点击账户可编辑/删除</div>';
+      }
+      html += accounts.map(a => `
+        <button class="tpl-chip${accountManaging ? ' managing' : ''}" data-account-id="${a.id}" data-action="edit-account">
+          <span class="tpl-icon">${a.icon}</span>
+          <span>${escapeHtml(a.name)}</span>
+          <span class="tpl-amount">${fmtMoney(a.balance)}</span>
+        </button>`).join('');
+    }
+    html += `<button class="tpl-chip-add" id="btnAddAccount" title="新建账户">+</button>`;
+    container.innerHTML = html;
+  } catch(e) {
+    console.error('renderAccountList error:', e);
+  }
 }
 
 function renderSummary() {
@@ -360,11 +477,15 @@ function openExpenseModal() {
   document.getElementById('chkSaveTemplate').checked = false;
   modalType = 'expense';
   selectedCategory = 'food';
+  selectedAccountId = '';
+  amountMode = 'delta';
   pendingImage = null;
   updateCameraButton();
 
   updateTypeToggle();
   renderCategoryOptions();
+  renderAccountChipSelect();
+  updateAmountModeUI();
   document.getElementById('inputAmount').focus();
 }
 
@@ -375,7 +496,7 @@ function closeExpenseModal() {
 }
 
 function updateTypeToggle() {
-  document.querySelectorAll('.type-btn').forEach(btn => {
+  document.querySelectorAll('.type-toggle .type-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.type === modalType);
   });
 }
@@ -395,13 +516,63 @@ function renderCategoryOptions() {
   `).join('');
 }
 
+// ========== 记账账户选择 & 记账方式 ==========
+
+function renderAccountChipSelect() {
+  const wrap = document.getElementById('accountChipSelect');
+  const accounts = getAccounts();
+  if (!accounts.length) {
+    wrap.style.display = 'none';
+    wrap.innerHTML = '';
+    updateAmountModeUI();
+    return;
+  }
+  wrap.style.display = 'flex';
+  wrap.innerHTML = accounts.map(a => `
+    <label class="account-chip${a.id === selectedAccountId ? ' selected' : ''}" data-account-id="${a.id}">
+      <input type="checkbox" ${a.id === selectedAccountId ? 'checked' : ''}>
+      <span>${a.icon} ${escapeHtml(a.name)}</span>
+    </label>
+  `).join('');
+  updateAmountModeUI();
+}
+
+function updateAmountModeUI() {
+  const toggle = document.getElementById('amountModeToggle');
+  const preview = document.getElementById('amountModePreview');
+  if (!selectedAccountId) {
+    toggle.style.display = 'none';
+    preview.style.display = 'none';
+    return;
+  }
+  toggle.style.display = 'flex';
+  document.querySelectorAll('.amount-mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === amountMode);
+  });
+
+  if (amountMode === 'final') {
+    const acc = getAccountById(selectedAccountId);
+    const val = parseFloat(document.getElementById('inputAmount').value);
+    preview.style.display = 'block';
+    if (acc && !isNaN(val)) {
+      const delta = val - acc.balance;
+      const dir = delta >= 0 ? '收入' : '支出';
+      preview.textContent = `将记为 ${dir} ¥${Math.abs(delta).toFixed(2)}（账户余额 ${fmtMoney(acc.balance)} → ¥${val.toFixed(2)}）`;
+    } else {
+      preview.textContent = '请输入账户变动后的最终余额';
+    }
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
 // ========== 日程视图（入口，实现在 calendar.js）==========
 
 function renderScheduleView() {
   if (typeof renderCalendar !== 'function') return; // 文件未加载时跳过
 
   var calendarGrid = document.getElementById('calendarGrid');
-  var weekView = document.getElementById('weekView');
+  var courseView = document.getElementById('courseView');
   var upcomingSection = document.getElementById('upcomingSection');
   var dayDetailSection = document.getElementById('dayDetailSection');
   var btnExport = document.getElementById('btnExportSched');
@@ -413,16 +584,16 @@ function renderScheduleView() {
     b.classList.toggle('active', b.dataset.mode === scheduleViewMode);
   });
 
-  if (scheduleViewMode === 'week') {
-    // 周模式：日期条 + 选中日从早到晚详情
+  if (scheduleViewMode === 'course') {
+    // 课表模式：时间轴 + 课程块 + 日程叠加
     calendarGrid.style.display = 'none';
     upcomingSection.style.display = 'none';
     dayDetailSection.style.display = 'none';
     if (btnExport) btnExport.style.display = 'none';
     if (btnPrev) btnPrev.title = '上周';
     if (btnNext) btnNext.title = '下周';
-    weekView.style.display = '';
-    renderWeekView();
+    courseView.style.display = '';
+    if (typeof renderCourseView === 'function') renderCourseView();
   } else {
     // 月模式：月历 + 即将到来 + 选中日详情
     calendarGrid.style.display = '';
@@ -431,7 +602,7 @@ function renderScheduleView() {
     if (btnExport) btnExport.style.display = '';
     if (btnPrev) btnPrev.title = '上月';
     if (btnNext) btnNext.title = '下月';
-    weekView.style.display = 'none';
+    courseView.style.display = 'none';
     renderCalendar(scheduleViewMonth.year, scheduleViewMonth.month);
     renderUpcoming();
     renderDayDetail(scheduleSelectedDate);
@@ -627,6 +798,99 @@ function closeSettings() {
   document.body.style.overflow = '';
 }
 
+// ========== 分模块同步 ==========
+
+let moduleSyncExportSelected = new Set(SYNC_MODULES.map(m => m.key));
+let moduleSyncImportData = null; // previewSyncCodeModules() 的结果
+let moduleSyncImportSelected = new Set();
+
+function openModuleSyncModal() {
+  renderModuleSyncExportList();
+  document.getElementById('moduleSyncImportCode').value = '';
+  document.getElementById('moduleSyncImportList').innerHTML = '';
+  document.getElementById('btnModuleSyncImport').style.display = 'none';
+  moduleSyncImportData = null;
+  document.getElementById('moduleSyncModal').classList.add('show');
+  document.getElementById('moduleSyncOverlay').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModuleSyncModal() {
+  document.getElementById('moduleSyncModal').classList.remove('show');
+  document.getElementById('moduleSyncOverlay').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+function renderModuleSyncExportList() {
+  document.getElementById('moduleSyncExportList').innerHTML = SYNC_MODULES.map(m => `
+    <label class="tpl-check-label">
+      <input type="checkbox" data-module-export="${m.key}" ${moduleSyncExportSelected.has(m.key) ? 'checked' : ''}>
+      ${m.icon} ${m.name}
+    </label>
+  `).join('');
+}
+
+function handleModuleSyncExport() {
+  if (moduleSyncExportSelected.size === 0) { showToast('请至少勾选一个模块'); return; }
+  const keys = Array.from(moduleSyncExportSelected);
+  const code = exportSyncCodeModules(keys);
+  const names = SYNC_MODULES.filter(m => keys.includes(m.key)).map(m => m.name).join('/');
+  navigator.clipboard.writeText(code).then(() => {
+    showToast('📋 已复制（' + names + '），在另一设备粘贴导入');
+  }).catch(() => {
+    prompt('请手动复制同步码（Cmd+C）：', code);
+  });
+}
+
+function handleModuleSyncParse() {
+  const code = document.getElementById('moduleSyncImportCode').value.trim();
+  if (!code) { showToast('请先粘贴同步码'); return; }
+  const preview = previewSyncCodeModules(code);
+  if (!preview.ok) {
+    showToast('❌ ' + preview.error);
+    document.getElementById('moduleSyncImportList').innerHTML = '';
+    document.getElementById('btnModuleSyncImport').style.display = 'none';
+    moduleSyncImportData = null;
+    return;
+  }
+  moduleSyncImportData = preview;
+  moduleSyncImportSelected = new Set(preview.modules);
+  renderModuleSyncImportList();
+  document.getElementById('btnModuleSyncImport').style.display = preview.modules.length ? '' : 'none';
+  if (!preview.modules.length) showToast('同步码中没有可识别的模块');
+}
+
+function renderModuleSyncImportList() {
+  if (!moduleSyncImportData || !moduleSyncImportData.modules.length) {
+    document.getElementById('moduleSyncImportList').innerHTML = '<p class="setting-desc">同步码中没有可识别的模块</p>';
+    return;
+  }
+  const present = new Set(moduleSyncImportData.modules);
+  document.getElementById('moduleSyncImportList').innerHTML = SYNC_MODULES.filter(m => present.has(m.key)).map(m => `
+    <label class="tpl-check-label">
+      <input type="checkbox" data-module-import="${m.key}" ${moduleSyncImportSelected.has(m.key) ? 'checked' : ''}>
+      ${m.icon} ${m.name}
+    </label>
+  `).join('');
+}
+
+function handleModuleSyncImport() {
+  if (!moduleSyncImportData) { showToast('请先解析同步码'); return; }
+  const keys = Array.from(moduleSyncImportSelected);
+  if (keys.length === 0) { showToast('请至少勾选一个模块'); return; }
+  const names = SYNC_MODULES.filter(m => keys.includes(m.key)).map(m => m.name).join('/');
+  if (!confirm('将用同步码中的数据覆盖本设备的：' + names + '，此操作不可撤销，确定继续？')) return;
+  const code = document.getElementById('moduleSyncImportCode').value.trim();
+  const result = importSyncCodeModules(code, keys);
+  if (!result.ok) { showToast('❌ ' + result.error); return; }
+  showToast('✅ 已导入：' + names);
+  renderExpenseView();
+  renderTodoView();
+  updateTodoBadge();
+  if (typeof renderScheduleView === 'function') renderScheduleView();
+  closeModuleSyncModal();
+}
+
 function handleSaveSettings() {
   settings.showTimeStatus = document.getElementById('settingShowTimeStatus').checked;
   settings.dueSoonDays = parseInt(document.getElementById('settingDueSoonDays').value) || 3;
@@ -663,24 +927,38 @@ function handleSaveSettings() {
 
 function handleSaveExpense() {
   const amountStr = document.getElementById('inputAmount').value;
-  const amount = parseFloat(amountStr);
+  const inputVal = parseFloat(amountStr);
   const date = document.getElementById('inputDate').value || today();
   const note = document.getElementById('inputNote').value.trim();
   const saveTpl = document.getElementById('chkSaveTemplate').checked;
 
-  if (!amount || amount <= 0) { showToast('请输入有效金额'); document.getElementById('inputAmount').focus(); return; }
+  if (!amountStr || isNaN(inputVal)) { showToast('请输入有效金额'); document.getElementById('inputAmount').focus(); return; }
   if (!selectedCategory) { showToast('请选择分类'); return; }
 
-  addExpense({ type: modalType, amount, category: selectedCategory, note, date, image: pendingImage || null });
+  let type = modalType;
+  let amount = inputVal;
+
+  if (selectedAccountId && amountMode === 'final') {
+    const acc = getAccountById(selectedAccountId);
+    if (!acc) { showToast('账户不存在'); return; }
+    const delta = inputVal - acc.balance;
+    if (delta === 0) { showToast('末状态值与当前余额相同，无需记录'); return; }
+    type = delta >= 0 ? 'income' : 'expense';
+    amount = Math.abs(delta);
+  } else {
+    if (amount <= 0) { showToast('请输入有效金额'); document.getElementById('inputAmount').focus(); return; }
+  }
+
+  addExpense({ type, amount, category: selectedCategory, note, date, image: pendingImage || null, accountId: selectedAccountId || '' });
 
   if (saveTpl) {
-    const cats = getMergedCategories(modalType);
+    const cats = getMergedCategories(type);
     const cat = cats.find(c => c.key === selectedCategory);
-    addTemplate({ name: note || (cat ? cat.name : ''), type: modalType, category: selectedCategory, amount, note });
+    addTemplate({ name: note || (cat ? cat.name : ''), type, category: selectedCategory, amount, note });
   }
 
   // 先渲染DOM再关弹窗，确保列表数据已更新
   renderExpenseView();
   closeExpenseModal();
-  showToast(modalType === 'expense' ? '支出已记录 ✓' : '收入已记录 ✓');
+  showToast(type === 'expense' ? '支出已记录 ✓' : '收入已记录 ✓');
 }
