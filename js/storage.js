@@ -60,6 +60,7 @@ if (!state.courseSchedule || typeof state.courseSchedule !== 'object') {
 if (!Array.isArray(state.courseSchedule.periods) || !state.courseSchedule.periods.length) {
   state.courseSchedule.periods = DEFAULT_PERIODS.slice();
 }
+state.courseSchedule.periods.forEach(p => { if (typeof p.name !== 'string') p.name = ''; });
 if (!Array.isArray(state.courseSchedule.courses)) state.courseSchedule.courses = [];
 if (typeof state.courseSchedule.currentWeek !== 'number') state.courseSchedule.currentWeek = 1;
 if (!state.courseSchedule.anchorDate) state.courseSchedule.anchorDate = today();

@@ -2387,26 +2387,38 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
 .course-toolbar .btn-primary { margin-left: auto; }
 
 .course-grid-wrap {
-  overflow-x: auto;
+  overflow: auto;
   -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--card);
+  max-height: 65vh;
 }
 .course-grid {
   min-width: 640px;
 }
 .course-grid-header {
   display: grid;
-  grid-template-columns: 44px repeat(7, 1fr);
+  grid-template-columns: 52px repeat(7, 1fr);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   background: var(--card);
-  z-index: 2;
+  z-index: 3;
 }
 .course-col-axis {
   border-right: 1px solid var(--border);
+  background: var(--card);
+}
+.course-grid-header .course-col-axis {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+}
+.course-grid-body .course-col-axis {
+  position: sticky;
+  left: 0;
+  z-index: 2;
 }
 .course-col-head {
   display: flex;
@@ -2425,7 +2437,7 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
 
 .course-grid-body {
   display: grid;
-  grid-template-columns: 44px repeat(7, 1fr);
+  grid-template-columns: 52px repeat(7, 1fr);
   position: relative;
 }
 .course-axis-label {
@@ -2434,6 +2446,14 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
   font-size: 0.65rem;
   color: var(--text-muted);
   transform: translateY(-50%);
+  white-space: nowrap;
+}
+.course-axis-period-name {
+  right: auto;
+  left: 2px;
+  font-size: 0.6rem;
+  color: var(--primary);
+  font-weight: 600;
 }
 .course-col-body {
   position: relative;
@@ -2488,12 +2508,17 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
 .period-set-row {
   align-items: center;
   margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 .period-set-index {
   flex-shrink: 0;
   font-size: 0.78rem;
   color: var(--text-secondary);
   width: 48px;
+}
+.period-set-name {
+  flex: 1 1 80px;
+  min-width: 60px;
 }
 .period-set-remove {
   flex-shrink: 0;
@@ -2543,6 +2568,7 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
   /* 课表暗色模式 */
   .course-col-head, .course-col-body { background: #1E293B; }
   .course-col-head.today, .course-col-body.today { background: #1E1B4B; }
+  .course-col-axis { background: #0F172A; }
   .course-axis-label { color: #94A3B8; }
   .course-block { box-shadow: 0 1px 3px rgba(0,0,0,.4); }
   .course-block.sched-block { background: #1E293B; }

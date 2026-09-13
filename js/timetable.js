@@ -98,6 +98,12 @@ function renderCourseGrid(weekNum, monday) {
     const top = (m - minMin) * PX_PER_MIN;
     axisHtml += '<div class="course-axis-label" style="top:' + top + 'px">' + minutesToTime(m) + '</div>';
   }
+  // 有自定义名称的节次（如早自习）额外标注名称
+  periods.forEach((p, i) => {
+    if (!p.name) return;
+    const top = (timeToMinutes(p.start) - minMin) * PX_PER_MIN;
+    axisHtml += '<div class="course-axis-label course-axis-period-name" style="top:' + top + 'px">' + escapeHtml(p.name) + '</div>';
+  });
 
   // ---- 每日课程/日程列 ----
   let bodyHtml = '<div class="course-col-axis" style="position:relative">' + axisHtml + '</div>';
@@ -192,14 +198,18 @@ function initCourseFormOptions() {
   ).join('');
 }
 
+function getPeriodLabel(p, i) {
+  return p.name ? p.name : ('第' + (i + 1) + '节');
+}
+
 function renderPeriodOptions() {
   const periods = state.courseSchedule.periods;
   const opts = periods.map((p, i) =>
-    `<option value="${i + 1}">第${i + 1}节 ${p.start}</option>`
+    `<option value="${i + 1}">${getPeriodLabel(p, i)} ${p.start}</option>`
   ).join('');
   document.getElementById('courseStartPeriod').innerHTML = opts;
   document.getElementById('courseEndPeriod').innerHTML = periods.map((p, i) =>
-    `<option value="${i + 1}">第${i + 1}节 ${p.end}</option>`
+    `<option value="${i + 1}">${getPeriodLabel(p, i)} ${p.end}</option>`
   ).join('');
 }
 
@@ -331,6 +341,7 @@ function renderPeriodSetList() {
   list.innerHTML = _periodSetDraft.map((p, i) => `
     <div class="form-row period-set-row" data-index="${i}">
       <span class="period-set-index">第${i + 1}节</span>
+      <input type="text" class="input period-set-name" placeholder="名称（选填）" value="${escapeHtml(p.name || '')}">
       <input type="time" class="input period-set-start" value="${p.start}">
       <input type="time" class="input period-set-end" value="${p.end}">
       <button type="button" class="btn btn-sm period-set-remove" style="background:#F43F5E;color:#fff">✕</button>
@@ -342,6 +353,7 @@ function handlePeriodSetInput(e) {
   const row = e.target.closest('.period-set-row');
   if (!row) return;
   const i = parseInt(row.dataset.index, 10);
+  if (e.target.classList.contains('period-set-name')) _periodSetDraft[i].name = e.target.value.trim();
   if (e.target.classList.contains('period-set-start')) _periodSetDraft[i].start = e.target.value;
   if (e.target.classList.contains('period-set-end')) _periodSetDraft[i].end = e.target.value;
 }
@@ -358,7 +370,7 @@ function handleAddPeriod() {
   const last = _periodSetDraft[_periodSetDraft.length - 1];
   const start = last ? minutesToTime(timeToMinutes(last.end) + 10) : '08:00';
   const end = minutesToTime(timeToMinutes(start) + 45);
-  _periodSetDraft.push({ start, end });
+  _periodSetDraft.push({ start, end, name: '' });
   renderPeriodSetList();
 }
 
