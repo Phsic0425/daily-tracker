@@ -74,7 +74,7 @@ function addCourse(record) {
     id: genId(),
     name: record.name,
     location: record.location || '',
-    weekday: parseInt(record.weekday, 10), // 1-7，周一到周日
+    weekdays: (Array.isArray(record.weekdays) ? record.weekdays : [record.weekday]).map(d => parseInt(d, 10)).filter(Boolean), // 1-7，周一到周日
     startPeriod: parseInt(record.startPeriod, 10),
     endPeriod: parseInt(record.endPeriod, 10),
     weeks: Array.isArray(record.weeks) ? record.weeks : parseWeeksText(record.weeksText || ''),
@@ -91,7 +91,7 @@ function updateCourse(id, record) {
   if (!course) return;
   course.name = record.name;
   course.location = record.location || '';
-  course.weekday = parseInt(record.weekday, 10);
+  course.weekdays = (Array.isArray(record.weekdays) ? record.weekdays : [record.weekday]).map(d => parseInt(d, 10)).filter(Boolean);
   course.startPeriod = parseInt(record.startPeriod, 10);
   course.endPeriod = parseInt(record.endPeriod, 10);
   course.weeks = Array.isArray(record.weeks) ? record.weeks : parseWeeksText(record.weeksText || '');
@@ -110,7 +110,9 @@ function getCoursesForWeek(weekNum) {
   const byDay = {1:[],2:[],3:[],4:[],5:[],6:[],7:[]};
   getCourses().forEach(c => {
     const active = c.weeks.includes(weekNum);
-    if (byDay[c.weekday]) byDay[c.weekday].push({ ...c, active });
+    (c.weekdays || []).forEach(wd => {
+      if (byDay[wd]) byDay[wd].push({ ...c, active });
+    });
   });
   return byDay;
 }

@@ -60,8 +60,9 @@ if (!state.courseSchedule || typeof state.courseSchedule !== 'object') {
 if (!Array.isArray(state.courseSchedule.periods) || !state.courseSchedule.periods.length) {
   state.courseSchedule.periods = DEFAULT_PERIODS.slice();
 }
-state.courseSchedule.periods.forEach(p => { if (typeof p.name !== 'string') p.name = ''; });
+state.courseSchedule.periods.forEach(p => { if (typeof p.name !== 'string') p.name = ''; if (typeof p.collapsed !== 'boolean') p.collapsed = false; });
 if (!Array.isArray(state.courseSchedule.courses)) state.courseSchedule.courses = [];
+state.courseSchedule.courses.forEach(c => { if (!Array.isArray(c.weekdays)) c.weekdays = c.weekday ? [c.weekday] : []; });
 if (typeof state.courseSchedule.currentWeek !== 'number') state.courseSchedule.currentWeek = 1;
 if (!state.courseSchedule.anchorDate) state.courseSchedule.anchorDate = today();
 state.courseSchedule.courses.forEach(c => {
@@ -89,6 +90,8 @@ const DEFAULT_SETTINGS = {
   scheduleViewMode: 'month', // 日程视图模式：month=月视图 / course=课表视图
   syncId: '',                // 云端同步 ID
   syncAuto: true,            // 自动同步开关
+  courseScaleY: 1,           // 课表竖直缩放（每分钟像素倍数）
+  courseColWidthPx: 0,       // 课表每日列宽（像素），0=自动铺满
 };
 
 function loadSettings() {

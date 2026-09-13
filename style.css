@@ -2513,6 +2513,30 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
   border: 1px solid var(--border);
 }
 
+.course-axis-label.half { color: var(--text-muted); opacity: 0.75; font-size: 0.6rem; }
+
+.course-now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 1.5px solid #F43F5E;
+  z-index: 5;
+  pointer-events: none;
+}
+.course-now-time {
+  position: absolute;
+  left: 2px;
+  top: -8px;
+  background: #F43F5E;
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
 /* 节次时间设置弹窗 */
 .period-set-list {
   max-height: 40vh;
@@ -2538,6 +2562,16 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
   flex-shrink: 0;
   width: 32px;
   padding: 6px 0;
+}
+.period-set-collapse {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  cursor: pointer;
 }
 
 /* 深色模式支持 */

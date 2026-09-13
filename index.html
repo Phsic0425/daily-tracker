@@ -411,8 +411,12 @@
       <input type="text" class="input" id="courseName" placeholder="课程名称" maxlength="30" style="margin-bottom:12px">
       <input type="text" class="input" id="courseLocation" placeholder="上课地点（选填）" maxlength="30" style="margin-bottom:12px">
 
+      <div class="setting-label" style="margin-bottom:6px">
+        <span>📅 上课星期（可多选）</span>
+      </div>
+      <div class="weekday-checks" id="courseWeekdayChecks" style="margin-bottom:12px"></div>
+
       <div class="form-row">
-        <select class="input" id="courseWeekday"></select>
         <select class="input" id="courseStartPeriod"></select>
         <select class="input" id="courseEndPeriod"></select>
       </div>
@@ -421,7 +425,8 @@
         <span>📆 上课周数</span>
       </div>
       <select class="input" id="courseWeeksPreset" style="margin-bottom:8px;width:100%"></select>
-      <input type="text" class="input" id="courseWeeksCustom" placeholder="自定义周数，如 1-8,10,12-16" style="margin-bottom:12px">
+      <input type="text" class="input" id="courseWeeksCustom" placeholder="自定义周数，如 1-8,10,12-16" style="margin-bottom:6px">
+      <p class="setting-desc" style="margin-bottom:12px">💡 隔周上课（单周/双周）：用逗号分隔奇数或偶数周，如单周 1,3,5,7... 或用上方"单周/双周"预设自动填入；也支持区间+单个混合，如 1-8,10,12-16</p>
 
       <div class="setting-label" style="margin-bottom:6px">
         <span>🎨 颜色标记</span>
@@ -454,9 +459,15 @@
     <div class="modal" id="periodSetModal">
       <div class="modal-handle"></div>
       <h3 class="modal-title">节次对应时间设置</h3>
-      <p class="setting-desc" style="margin-bottom:8px">可插入自定义节次（如早自习/午休），名称留空则显示"第N节"</p>
+      <p class="setting-desc" style="margin-bottom:8px">可插入自定义节次（如早自习/午休），名称留空则显示"第N节"；勾选"折叠"可将该节次（如午休）在课表中压缩显示，节省竖向空间</p>
       <div class="period-set-list" id="periodSetList"></div>
       <button class="btn btn-sm" id="btnAddPeriod" style="margin-bottom:12px">+ 添加节次</button>
+
+      <div class="setting-label" style="margin-bottom:6px">
+        <span>📏 课表竖向缩放</span>
+        <span class="setting-desc" id="courseScaleYLabel">1.0x</span>
+      </div>
+      <input type="range" class="input" id="courseScaleY" min="0.5" max="2" step="0.1" value="1" style="margin-bottom:16px;width:100%">
       <button class="btn btn-primary btn-block" id="btnSavePeriodSet">保存</button>
       <button class="btn btn-ghost btn-block" id="btnCancelPeriodSet">取消</button>
     </div>

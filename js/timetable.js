@@ -25,6 +25,70 @@ function getMondayOfWeek(dateStr) {
 
 // ========== 课表视图渲染 ==========
 
+// 分段时间轴映射：折叠节次（如午休）压缩为固定高度，其余按比例缩放
+function buildMinuteToPixel(minMin, maxMin, periods, pxPerMin) {
+  const COLLAPSED_PX = 22;
+  const merged = [];
+  periods.filter(p => p.collapsed).map(p => [timeToMinutes(p.start), timeToMinutes(p.end)])
+    .filter(([s, e]) => e > s && e > minMin && s < maxMin)
+    .map(([s, e]) => [Math.max(s, minMin), Math.min(e, maxMin)])
+    .sort((a, b) => a[0] - b[0])
+    .forEach(([s, e]) => {
+      if (merged.length && s <= merged[merged.length - 1][1]) {
+        merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], e);
+      } else {
+        merged.push([s, e]);
+      }
+    });
+
+  const marks = [];
+  let px = 0, cursor = minMin;
+  marks.push({ min: cursor, px });
+  merged.forEach(([s, e]) => {
+    px += (s - cursor) * pxPerMin;
+    marks.push({ min: s, px });
+    px += COLLAPSED_PX;
+    marks.push({ min: e, px });
+    cursor = e;
+  });
+  px += (maxMin - cursor) * pxPerMin;
+  marks.push({ min: maxMin, px });
+
+  function minuteToPixel(min) {
+    const m = Math.max(minMin, Math.min(maxMin, min));
+    for (let i = 0; i < marks.length - 1; i++) {
+      const a = marks[i], b = marks[i + 1];
+      if (m >= a.min && m <= b.min) {
+        if (b.min === a.min) return a.px;
+        return a.px + (m - a.min) / (b.min - a.min) * (b.px - a.px);
+      }
+    }
+    return px;
+  }
+  return { minuteToPixel, totalPx: px };
+}
+
+// 当前时间红线：记录最近一次渲染的时间轴映射，供计时器定位刷新
+let _courseNowLineInfo = null;
+let _courseNowLineTimer = null;
+
+function updateCourseNowLinePosition() {
+  const line = document.getElementById('courseNowLine');
+  if (!line || !_courseNowLineInfo) return;
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const { minuteToPixel, minMin, maxMin } = _courseNowLineInfo;
+  if (nowMin < minMin || nowMin > maxMin) { line.style.display = 'none'; return; }
+  line.style.display = '';
+  line.style.top = minuteToPixel(nowMin) + 'px';
+  line.innerHTML = '<span class="course-now-time">' + minutesToTime(nowMin) + '</span>';
+}
+
+function startCourseNowLineTimer() {
+  if (_courseNowLineTimer) return;
+  _courseNowLineTimer = setInterval(updateCourseNowLinePosition, 30000);
+}
+
 function renderCourseView() {
   const monday = getMondayOfWeek(scheduleSelectedDate);
   const sunday = new Date(monday);
@@ -77,8 +141,9 @@ function renderCourseGrid(weekNum, monday) {
     });
   });
 
-  const PX_PER_MIN = 1.1;
-  const totalHeight = (maxMin - minMin) * PX_PER_MIN;
+  const PX_PER_MIN = 1.1 * (settings.courseScaleY || 1);
+  const { minuteToPixel, totalPx: totalHeight } = buildMinuteToPixel(minMin, maxMin, periods, PX_PER_MIN);
+  _courseNowLineInfo = { minuteToPixel, minMin, maxMin };
   const byDay = getCoursesForWeek(weekNum);
 
   // 同一天内时间重叠的块（课程/日程）并排显示，而不是互相盖住
@@ -132,21 +197,23 @@ function renderCourseGrid(weekNum, monday) {
       '</div>';
   });
 
-  // ---- 时间轴标签 ----
+  // ---- 时间轴标签（每半小时一个刻度） ----
   let axisHtml = '';
-  for (let m = minMin; m <= maxMin; m += 60) {
-    const top = (m - minMin) * PX_PER_MIN;
-    axisHtml += '<div class="course-axis-label" style="top:' + top + 'px">' + minutesToTime(m) + '</div>';
+  for (let m = minMin; m <= maxMin; m += 30) {
+    const top = minuteToPixel(m);
+    const isHalf = (m % 60) !== 0;
+    axisHtml += '<div class="course-axis-label' + (isHalf ? ' half' : '') + '" style="top:' + top + 'px">' + minutesToTime(m) + '</div>';
   }
   // 有自定义名称的节次（如早自习）额外标注名称
   periods.forEach((p, i) => {
     if (!p.name) return;
-    const top = (timeToMinutes(p.start) - minMin) * PX_PER_MIN;
+    const top = minuteToPixel(timeToMinutes(p.start));
     axisHtml += '<div class="course-axis-label course-axis-period-name" style="top:' + top + 'px">' + escapeHtml(p.name) + '</div>';
   });
 
   // ---- 每日课程/日程列 ----
-  let bodyHtml = '<div class="course-col-axis" style="position:relative">' + axisHtml + '</div>';
+  let bodyHtml = '<div class="course-now-line" id="courseNowLine" style="display:none"></div>' +
+    '<div class="course-col-axis" style="position:relative">' + axisHtml + '</div>';
   dayDates.forEach((dateStr, i) => {
     const weekday = i + 1; // 1=周一 .. 7=周日
     const courses = byDay[weekday] || [];
@@ -208,6 +275,9 @@ function renderCourseGrid(weekNum, monday) {
   wrap.innerHTML =
     '<div class="course-grid-header">' + headerHtml + '</div>' +
     '<div class="course-grid-body" style="height:' + totalHeight + 'px">' + bodyHtml + '</div>';
+
+  updateCourseNowLinePosition();
+  startCourseNowLineTimer();
 }
 
 // ========== 课程编辑弹窗 ==========
@@ -249,8 +319,8 @@ function initCourseFormOptions() {
   if (_courseFormInited) return;
   _courseFormInited = true;
 
-  document.getElementById('courseWeekday').innerHTML = WEEKDAY_NAMES_MON_START.map((name, i) =>
-    `<option value="${i + 1}">周${name}</option>`
+  document.getElementById('courseWeekdayChecks').innerHTML = WEEKDAY_NAMES_MON_START.map((name, i) =>
+    `<label class="weekday-check"><input type="checkbox" value="${i + 1}"> 周${name}</label>`
   ).join('');
 
   document.getElementById('courseWeeksPreset').innerHTML = COURSE_WEEKS_PRESETS.map(p =>
@@ -281,7 +351,7 @@ function resetCourseForm() {
   renderPeriodOptions();
   document.getElementById('courseName').value = '';
   document.getElementById('courseLocation').value = '';
-  document.getElementById('courseWeekday').value = '1';
+  document.querySelectorAll('#courseWeekdayChecks input').forEach((cb, i) => { cb.checked = i === 0; });
   document.getElementById('courseStartPeriod').value = '1';
   document.getElementById('courseEndPeriod').value = '1';
   document.getElementById('courseWeeksPreset').value = 'all';
@@ -294,7 +364,9 @@ function fillCourseForm(course) {
   renderPeriodOptions();
   document.getElementById('courseName').value = course.name;
   document.getElementById('courseLocation').value = course.location || '';
-  document.getElementById('courseWeekday').value = course.weekday;
+  document.querySelectorAll('#courseWeekdayChecks input').forEach(cb => {
+    cb.checked = (course.weekdays || []).includes(parseInt(cb.value, 10));
+  });
   document.getElementById('courseStartPeriod').value = course.startPeriod;
   document.getElementById('courseEndPeriod').value = course.endPeriod;
   document.getElementById('courseWeeksPreset').value = 'custom';
@@ -323,7 +395,10 @@ function handleSaveCourse() {
   const startPeriod = parseInt(document.getElementById('courseStartPeriod').value, 10);
   const endPeriod = parseInt(document.getElementById('courseEndPeriod').value, 10);
 
+  const weekdays = Array.from(document.querySelectorAll('#courseWeekdayChecks input:checked')).map(cb => parseInt(cb.value, 10));
+
   if (!name) { showToast('请输入课程名称'); return; }
+  if (!weekdays.length) { showToast('请至少选择一个上课星期'); return; }
   if (endPeriod < startPeriod) { showToast('结束节次不能早于开始节次'); return; }
   const weeks = parseWeeksText(weeksText);
   if (!weeks.length) { showToast('请输入有效的上课周数'); return; }
@@ -331,7 +406,7 @@ function handleSaveCourse() {
   const record = {
     name,
     location: document.getElementById('courseLocation').value.trim(),
-    weekday: document.getElementById('courseWeekday').value,
+    weekdays,
     startPeriod, endPeriod,
     weeksText,
     color: courseFormColor,
@@ -392,6 +467,14 @@ function openPeriodSetModal() {
   document.getElementById('periodSetOverlay').classList.add('show');
   document.body.style.overflow = 'hidden';
   renderPeriodSetList();
+  const scaleInput = document.getElementById('courseScaleY');
+  const scaleLabel = document.getElementById('courseScaleYLabel');
+  scaleInput.value = settings.courseScaleY || 1;
+  scaleLabel.textContent = (settings.courseScaleY || 1).toFixed(1) + 'x';
+}
+
+function handleCourseScaleYInput(e) {
+  document.getElementById('courseScaleYLabel').textContent = parseFloat(e.target.value).toFixed(1) + 'x';
 }
 
 function closePeriodSetModal() {
@@ -408,6 +491,9 @@ function renderPeriodSetList() {
       <input type="text" class="input period-set-name" placeholder="名称（选填）" value="${escapeHtml(p.name || '')}">
       <input type="time" class="input period-set-start" value="${p.start}">
       <input type="time" class="input period-set-end" value="${p.end}">
+      <label class="period-set-collapse" title="折叠该节次（如午休）以节省竖向空间">
+        <input type="checkbox" class="period-set-collapse-check" ${p.collapsed ? 'checked' : ''}> 折叠
+      </label>
       <button type="button" class="btn btn-sm period-set-remove" style="background:#F43F5E;color:#fff">✕</button>
     </div>
   `).join('');
@@ -420,6 +506,7 @@ function handlePeriodSetInput(e) {
   if (e.target.classList.contains('period-set-name')) _periodSetDraft[i].name = e.target.value.trim();
   if (e.target.classList.contains('period-set-start')) _periodSetDraft[i].start = e.target.value;
   if (e.target.classList.contains('period-set-end')) _periodSetDraft[i].end = e.target.value;
+  if (e.target.classList.contains('period-set-collapse-check')) _periodSetDraft[i].collapsed = e.target.checked;
 }
 
 function handlePeriodSetRemove(e) {
@@ -434,13 +521,15 @@ function handleAddPeriod() {
   const last = _periodSetDraft[_periodSetDraft.length - 1];
   const start = last ? minutesToTime(timeToMinutes(last.end) + 10) : '08:00';
   const end = minutesToTime(timeToMinutes(start) + 45);
-  _periodSetDraft.push({ start, end, name: '' });
+  _periodSetDraft.push({ start, end, name: '', collapsed: false });
   renderPeriodSetList();
 }
 
 function handleSavePeriodSet() {
   if (!_periodSetDraft.length) { showToast('至少需要保留一个节次'); return; }
   updatePeriods(_periodSetDraft.map(p => ({ ...p })));
+  settings.courseScaleY = parseFloat(document.getElementById('courseScaleY').value) || 1;
+  saveSettings(settings);
   closePeriodSetModal();
   renderCourseView();
   showToast('节次设置已保存 ✓');

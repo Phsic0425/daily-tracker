@@ -819,6 +819,7 @@ function setupEvents() {
     if (e.target.closest('.period-set-remove')) handlePeriodSetRemove(e);
   });
   document.getElementById('btnAddPeriod').addEventListener('click', handleAddPeriod);
+  document.getElementById('courseScaleY').addEventListener('input', handleCourseScaleYInput);
   document.getElementById('btnSavePeriodSet').addEventListener('click', handleSavePeriodSet);
   document.getElementById('btnCancelPeriodSet').addEventListener('click', closePeriodSetModal);
   document.getElementById('periodSetOverlay').addEventListener('click', closePeriodSetModal);
