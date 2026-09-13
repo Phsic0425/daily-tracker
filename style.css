@@ -2574,6 +2574,27 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
   cursor: pointer;
 }
 
+/* 局部时间段缩放列表 */
+.scale-zone-list {
+  max-height: 30vh;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+.scale-zone-row {
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.scale-zone-factor {
+  flex: 0 1 70px;
+  min-width: 60px;
+}
+.scale-zone-remove {
+  flex-shrink: 0;
+  width: 32px;
+  padding: 6px 0;
+}
+
 /* 深色模式支持 */
 @media (prefers-color-scheme: dark) {
   :root {

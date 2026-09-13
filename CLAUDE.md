@@ -51,11 +51,12 @@ state = {
   schedules:[{ id, title, date, time, repeatMode, repeatConfig, reminder, color, label, createdAt }],
   accounts: [{ id, name, type, icon, balance, note, createdAt }],
   courseSchedule: {
-    periods: [{ start, end }],      // 每节课起止时间 "HH:MM"，默认 12 节
+    periods: [{ start, end, name, collapsed }], // 每节课起止时间 "HH:MM"，默认 12 节；collapsed=折叠压缩显示（如午休）
     currentWeek: 1,                 // 锚点：anchorDate 当天是第几周
     anchorDate: '2026-08-01',       // 锚点日期，用于按周一起始推算任意日期的周数
-    courses: [{ id, name, location, weekday, startPeriod, endPeriod, weeks, color, createdAt }]
+    courses: [{ id, name, location, weekday, startPeriod, endPeriod, weeks, color, createdAt }],
     // weekday: 1-7（周一=1）；weeks: number[]，来自 parseWeeksText 或预设
+    scaleZones: [{ start, end, factor }] // 局部时间段缩放（时间轴任意区间自定义纵向缩放倍数），与 periods[].collapsed 独立叠加
   }
 }
 // 存于 localStorage key: 'daily_tracker_data'
@@ -66,6 +67,8 @@ settings = {
   defaultSortMode: 'deadline', // 'deadline' | 'priority' | 'status'
   sortAsc: true,         // true=升序(早→晚)
   scheduleViewMode: 'month', // 'month'=月视图 / 'course'=课表视图
+  courseScaleY: 1,       // 课表整体竖向缩放倍数（每分钟像素）
+  courseScaleX: 1,       // 课表整体横向缩放倍数（每日列宽/最小总宽）
 }
 // 存于 localStorage key: 'daily_tracker_settings'
 ```

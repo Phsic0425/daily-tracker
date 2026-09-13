@@ -468,6 +468,20 @@
         <span class="setting-desc" id="courseScaleYLabel">1.0x</span>
       </div>
       <input type="range" class="input" id="courseScaleY" min="0.5" max="2" step="0.1" value="1" style="margin-bottom:16px;width:100%">
+
+      <div class="setting-label" style="margin-bottom:6px">
+        <span>↔️ 课表横向缩放</span>
+        <span class="setting-desc" id="courseScaleXLabel">1.0x</span>
+      </div>
+      <input type="range" class="input" id="courseScaleX" min="0.5" max="2" step="0.1" value="1" style="margin-bottom:16px;width:100%">
+
+      <div class="setting-label" style="margin-bottom:6px">
+        <span>🔍 局部时间段缩放</span>
+      </div>
+      <p class="setting-desc" style="margin-bottom:8px">对某段时间单独设置缩放比例（如把午休压缩到0.3x），不影响其他时段</p>
+      <div class="scale-zone-list" id="scaleZoneList"></div>
+      <button class="btn btn-sm" id="btnAddScaleZone" style="margin-bottom:16px">+ 添加缩放区间</button>
+
       <button class="btn btn-primary btn-block" id="btnSavePeriodSet">保存</button>
       <button class="btn btn-ghost btn-block" id="btnCancelPeriodSet">取消</button>
     </div>

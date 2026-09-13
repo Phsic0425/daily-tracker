@@ -25,34 +25,59 @@ function getMondayOfWeek(dateStr) {
 
 // ========== 课表视图渲染 ==========
 
-// 分段时间轴映射：折叠节次（如午休）压缩为固定高度，其余按比例缩放
-function buildMinuteToPixel(minMin, maxMin, periods, pxPerMin) {
+// 分段时间轴映射：折叠节次（如午休）压缩为固定高度；自定义缩放区间按各自比例缩放；其余按全局比例缩放
+function buildMinuteToPixel(minMin, maxMin, periods, pxPerMin, scaleZones) {
   const COLLAPSED_PX = 22;
-  const merged = [];
+  const collapsed = [];
   periods.filter(p => p.collapsed).map(p => [timeToMinutes(p.start), timeToMinutes(p.end)])
     .filter(([s, e]) => e > s && e > minMin && s < maxMin)
     .map(([s, e]) => [Math.max(s, minMin), Math.min(e, maxMin)])
     .sort((a, b) => a[0] - b[0])
     .forEach(([s, e]) => {
-      if (merged.length && s <= merged[merged.length - 1][1]) {
-        merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], e);
+      if (collapsed.length && s <= collapsed[collapsed.length - 1][1]) {
+        collapsed[collapsed.length - 1][1] = Math.max(collapsed[collapsed.length - 1][1], e);
       } else {
-        merged.push([s, e]);
+        collapsed.push([s, e]);
       }
     });
 
+  const zones = (scaleZones || []).map(z => [timeToMinutes(z.start), timeToMinutes(z.end), z.factor || 1])
+    .filter(([s, e]) => e > s && e > minMin && s < maxMin)
+    .map(([s, e, f]) => [Math.max(s, minMin), Math.min(e, maxMin), f])
+    .sort((a, b) => a[0] - b[0]);
+
   const marks = [];
-  let px = 0, cursor = minMin;
+  let px = 0;
+
+  // 填充 [a, b) 区间，途中遇到自定义缩放区间则按其比例缩放，其余按全局比例
+  function fillGap(a, b) {
+    let cur = a;
+    zones.forEach(([zs, ze, f]) => {
+      const s = Math.max(zs, cur), e = Math.min(ze, b);
+      if (e <= s) return;
+      if (s > cur) {
+        px += (s - cur) * pxPerMin;
+        marks.push({ min: s, px });
+      }
+      px += (e - s) * pxPerMin * f;
+      marks.push({ min: e, px });
+      cur = e;
+    });
+    if (b > cur) {
+      px += (b - cur) * pxPerMin;
+      marks.push({ min: b, px });
+    }
+  }
+
+  let cursor = minMin;
   marks.push({ min: cursor, px });
-  merged.forEach(([s, e]) => {
-    px += (s - cursor) * pxPerMin;
-    marks.push({ min: s, px });
+  collapsed.forEach(([s, e]) => {
+    fillGap(cursor, s);
     px += COLLAPSED_PX;
     marks.push({ min: e, px });
     cursor = e;
   });
-  px += (maxMin - cursor) * pxPerMin;
-  marks.push({ min: maxMin, px });
+  fillGap(cursor, maxMin);
 
   function minuteToPixel(min) {
     const m = Math.max(minMin, Math.min(maxMin, min));
@@ -142,7 +167,7 @@ function renderCourseGrid(weekNum, monday) {
   });
 
   const PX_PER_MIN = 1.1 * (settings.courseScaleY || 1);
-  const { minuteToPixel, totalPx: totalHeight } = buildMinuteToPixel(minMin, maxMin, periods, PX_PER_MIN);
+  const { minuteToPixel, totalPx: totalHeight } = buildMinuteToPixel(minMin, maxMin, periods, PX_PER_MIN, getScaleZones());
   _courseNowLineInfo = { minuteToPixel, minMin, maxMin };
   const byDay = getCoursesForWeek(weekNum);
 
@@ -272,6 +297,8 @@ function renderCourseGrid(weekNum, monday) {
     bodyHtml += '<div class="course-col-body' + (isToday ? ' today' : '') + '" style="height:' + totalHeight + 'px">' + colHtml + '</div>';
   });
 
+  const gridMinWidth = Math.round(640 * (settings.courseScaleX || 1));
+  wrap.style.minWidth = gridMinWidth + 'px';
   wrap.innerHTML =
     '<div class="course-grid-header">' + headerHtml + '</div>' +
     '<div class="course-grid-body" style="height:' + totalHeight + 'px">' + bodyHtml + '</div>';
@@ -460,21 +487,32 @@ function handleSaveWeekSet() {
 // ========== 节次时间设置弹窗 ==========
 
 let _periodSetDraft = [];
+let _scaleZoneDraft = [];
 
 function openPeriodSetModal() {
   _periodSetDraft = state.courseSchedule.periods.map(p => ({ ...p }));
+  _scaleZoneDraft = getScaleZones().map(z => ({ ...z }));
   document.getElementById('periodSetModal').classList.add('show');
   document.getElementById('periodSetOverlay').classList.add('show');
   document.body.style.overflow = 'hidden';
   renderPeriodSetList();
-  const scaleInput = document.getElementById('courseScaleY');
-  const scaleLabel = document.getElementById('courseScaleYLabel');
-  scaleInput.value = settings.courseScaleY || 1;
-  scaleLabel.textContent = (settings.courseScaleY || 1).toFixed(1) + 'x';
+  renderScaleZoneList();
+  const scaleYInput = document.getElementById('courseScaleY');
+  const scaleYLabel = document.getElementById('courseScaleYLabel');
+  scaleYInput.value = settings.courseScaleY || 1;
+  scaleYLabel.textContent = (settings.courseScaleY || 1).toFixed(1) + 'x';
+  const scaleXInput = document.getElementById('courseScaleX');
+  const scaleXLabel = document.getElementById('courseScaleXLabel');
+  scaleXInput.value = settings.courseScaleX || 1;
+  scaleXLabel.textContent = (settings.courseScaleX || 1).toFixed(1) + 'x';
 }
 
 function handleCourseScaleYInput(e) {
   document.getElementById('courseScaleYLabel').textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+}
+
+function handleCourseScaleXInput(e) {
+  document.getElementById('courseScaleXLabel').textContent = parseFloat(e.target.value).toFixed(1) + 'x';
 }
 
 function closePeriodSetModal() {
@@ -525,10 +563,57 @@ function handleAddPeriod() {
   renderPeriodSetList();
 }
 
+// ---- 局部时间段缩放草稿编辑 ----
+
+function renderScaleZoneList() {
+  const list = document.getElementById('scaleZoneList');
+  if (!_scaleZoneDraft.length) {
+    list.innerHTML = '<p class="setting-desc" style="margin-bottom:8px">暂无自定义缩放区间</p>';
+    return;
+  }
+  list.innerHTML = _scaleZoneDraft.map((z, i) => `
+    <div class="form-row scale-zone-row" data-index="${i}">
+      <input type="time" class="input scale-zone-start" value="${z.start}">
+      <input type="time" class="input scale-zone-end" value="${z.end}">
+      <input type="number" class="input scale-zone-factor" min="0.1" max="5" step="0.1" value="${z.factor}" title="缩放倍数">
+      <button type="button" class="btn btn-sm scale-zone-remove" style="background:#F43F5E;color:#fff">✕</button>
+    </div>
+  `).join('');
+}
+
+function handleScaleZoneInput(e) {
+  const row = e.target.closest('.scale-zone-row');
+  if (!row) return;
+  const i = parseInt(row.dataset.index, 10);
+  if (e.target.classList.contains('scale-zone-start')) _scaleZoneDraft[i].start = e.target.value;
+  if (e.target.classList.contains('scale-zone-end')) _scaleZoneDraft[i].end = e.target.value;
+  if (e.target.classList.contains('scale-zone-factor')) _scaleZoneDraft[i].factor = parseFloat(e.target.value) || 1;
+}
+
+function handleScaleZoneRemove(e) {
+  const row = e.target.closest('.scale-zone-row');
+  if (!row) return;
+  const i = parseInt(row.dataset.index, 10);
+  _scaleZoneDraft.splice(i, 1);
+  renderScaleZoneList();
+}
+
+function handleAddScaleZone() {
+  const last = _scaleZoneDraft[_scaleZoneDraft.length - 1];
+  const start = last ? last.end : '12:00';
+  const end = minutesToTime(timeToMinutes(start) + 60);
+  _scaleZoneDraft.push({ start, end, factor: 0.5 });
+  renderScaleZoneList();
+}
+
 function handleSavePeriodSet() {
   if (!_periodSetDraft.length) { showToast('至少需要保留一个节次'); return; }
+  const invalidZone = _scaleZoneDraft.find(z => !z.start || !z.end || timeToMinutes(z.end) <= timeToMinutes(z.start));
+  if (invalidZone) { showToast('缩放区间的结束时间需晚于开始时间'); return; }
   updatePeriods(_periodSetDraft.map(p => ({ ...p })));
+  updateScaleZones(_scaleZoneDraft.map(z => ({ ...z })));
   settings.courseScaleY = parseFloat(document.getElementById('courseScaleY').value) || 1;
+  settings.courseScaleX = parseFloat(document.getElementById('courseScaleX').value) || 1;
   saveSettings(settings);
   closePeriodSetModal();
   renderCourseView();

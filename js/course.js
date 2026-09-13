@@ -61,6 +61,16 @@ function updatePeriods(periods) {
   saveData(state);
 }
 
+// 局部时间段缩放（如自定义压缩午休/自习时段），与节次的"折叠"开关独立叠加
+function getScaleZones() {
+  return state.courseSchedule.scaleZones || [];
+}
+
+function updateScaleZones(zones) {
+  state.courseSchedule.scaleZones = zones;
+  saveData(state);
+}
+
 function getCourses() {
   return state.courseSchedule.courses || [];
 }

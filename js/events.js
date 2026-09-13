@@ -820,6 +820,12 @@ function setupEvents() {
   });
   document.getElementById('btnAddPeriod').addEventListener('click', handleAddPeriod);
   document.getElementById('courseScaleY').addEventListener('input', handleCourseScaleYInput);
+  document.getElementById('courseScaleX').addEventListener('input', handleCourseScaleXInput);
+  document.getElementById('scaleZoneList').addEventListener('input', handleScaleZoneInput);
+  document.getElementById('scaleZoneList').addEventListener('click', e => {
+    if (e.target.closest('.scale-zone-remove')) handleScaleZoneRemove(e);
+  });
+  document.getElementById('btnAddScaleZone').addEventListener('click', handleAddScaleZone);
   document.getElementById('btnSavePeriodSet').addEventListener('click', handleSavePeriodSet);
   document.getElementById('btnCancelPeriodSet').addEventListener('click', closePeriodSetModal);
   document.getElementById('periodSetOverlay').addEventListener('click', closePeriodSetModal);

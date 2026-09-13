@@ -55,12 +55,13 @@ state.expenses.forEach(e => {
 });
 
 if (!state.courseSchedule || typeof state.courseSchedule !== 'object') {
-  state.courseSchedule = { periods: DEFAULT_PERIODS.slice(), currentWeek: 1, anchorDate: today(), courses: [] };
+  state.courseSchedule = { periods: DEFAULT_PERIODS.slice(), currentWeek: 1, anchorDate: today(), courses: [], scaleZones: [] };
 }
 if (!Array.isArray(state.courseSchedule.periods) || !state.courseSchedule.periods.length) {
   state.courseSchedule.periods = DEFAULT_PERIODS.slice();
 }
 state.courseSchedule.periods.forEach(p => { if (typeof p.name !== 'string') p.name = ''; if (typeof p.collapsed !== 'boolean') p.collapsed = false; });
+if (!Array.isArray(state.courseSchedule.scaleZones)) state.courseSchedule.scaleZones = [];
 if (!Array.isArray(state.courseSchedule.courses)) state.courseSchedule.courses = [];
 state.courseSchedule.courses.forEach(c => { if (!Array.isArray(c.weekdays)) c.weekdays = c.weekday ? [c.weekday] : []; });
 if (typeof state.courseSchedule.currentWeek !== 'number') state.courseSchedule.currentWeek = 1;
@@ -90,8 +91,8 @@ const DEFAULT_SETTINGS = {
   scheduleViewMode: 'month', // 日程视图模式：month=月视图 / course=课表视图
   syncId: '',                // 云端同步 ID
   syncAuto: true,            // 自动同步开关
-  courseScaleY: 1,           // 课表竖直缩放（每分钟像素倍数）
-  courseColWidthPx: 0,       // 课表每日列宽（像素），0=自动铺满
+  courseScaleY: 1,           // 课表竖向缩放（每分钟像素倍数）
+  courseScaleX: 1,           // 课表横向缩放（每日列宽倍数）
 };
 
 function loadSettings() {
@@ -419,8 +420,9 @@ function importData(jsonStr) {
   if (!Array.isArray(data.schedules)) data.schedules = [];
   if (!Array.isArray(data.accounts)) data.accounts = [];
   if (!data.courseSchedule || typeof data.courseSchedule !== 'object') {
-    data.courseSchedule = { periods: DEFAULT_PERIODS.slice(), currentWeek: 1, anchorDate: today(), courses: [] };
+    data.courseSchedule = { periods: DEFAULT_PERIODS.slice(), currentWeek: 1, anchorDate: today(), courses: [], scaleZones: [] };
   }
+  if (!Array.isArray(data.courseSchedule.scaleZones)) data.courseSchedule.scaleZones = [];
   state.expenses = data.expenses;
   state.todos = data.todos;
   state.templates = data.templates;
