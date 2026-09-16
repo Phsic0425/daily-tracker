@@ -302,6 +302,17 @@ function renderExpenseList() {
 // ========== 待办视图 ==========
 
 function renderTodoView() {
+  const isLongTerm = todoViewMode === 'longterm';
+  document.querySelectorAll('.todo-mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === todoViewMode);
+  });
+  const deadlineInput = document.getElementById('todoDeadline');
+  deadlineInput.required = !isLongTerm;
+  deadlineInput.style.display = isLongTerm ? 'none' : '';
+  document.getElementById('todoTitle').placeholder = isLongTerm ? '输入长期待办事项...' : '输入待办事项...';
+  document.querySelectorAll('.sort-mode-btn[data-sort="deadline"]').forEach(b => {
+    b.style.display = isLongTerm ? 'none' : '';
+  });
   renderActiveTodos();
   renderCompletedTodos();
   updateTodoBadge();
@@ -309,8 +320,9 @@ function renderTodoView() {
 
 function renderActiveTodos() {
   const container = document.getElementById('activeTodoList');
-  const todos = getActiveTodos(todoSortMode);
-  document.getElementById('activeCount').textContent = getActiveCount();
+  const isLongTerm = todoViewMode === 'longterm';
+  const todos = getActiveTodos(todoSortMode, isLongTerm);
+  document.getElementById('activeCount').textContent = getActiveCount(isLongTerm);
 
   // 更新排序模式按钮状态
   document.querySelectorAll('.sort-mode-btn').forEach(b => {
@@ -320,7 +332,9 @@ function renderActiveTodos() {
   if (dirBtn) dirBtn.textContent = todoSortAsc ? '↑' : '↓';
 
   if (todos.length === 0) {
-    container.innerHTML = '<p class="empty-hint">没有待办，添加一个吧</p>';
+    container.innerHTML = isLongTerm
+      ? '<p class="empty-hint">没有长期待办，那些暂时做不完的事可以放这里 🌱</p>'
+      : '<p class="empty-hint">没有待办，添加一个吧</p>';
     return;
   }
 
@@ -351,8 +365,8 @@ function renderChildren(parentId, depth) {
 }
 
 function renderTodoItem(t, depth) {
-  const overdue = isOverdue(t.deadline);
-  const dueSoon = !overdue && isDueSoon(t.deadline);
+  const overdue = !t.isLongTerm && isOverdue(t.deadline);
+  const dueSoon = !overdue && !t.isLongTerm && isDueSoon(t.deadline);
   const showStatus = settings.showTimeStatus;
   let statusClass = '';
   if (t.completed) statusClass = ' completed-item';
@@ -360,7 +374,7 @@ function renderTodoItem(t, depth) {
   else if (showStatus && dueSoon) statusClass = ' due-soon';
 
   const p = PRIORITY_MAP[t.priority] || PRIORITY_MAP['medium'];
-  let dateHtml = `<span class="todo-deadline">📅 ${fmtDateShort(t.deadline)}</span>`;
+  let dateHtml = t.deadline ? `<span class="todo-deadline">📅 ${fmtDateShort(t.deadline)}</span>` : '';
   if (!t.completed && showStatus && overdue) {
     dateHtml = `<span class="todo-deadline overdue">📅 ${fmtDateShort(t.deadline)} ⚠️超时</span>`;
   } else if (!t.completed && showStatus && dueSoon) {
@@ -407,8 +421,9 @@ function renderTodoItem(t, depth) {
 
 function renderCompletedTodos() {
   const container = document.getElementById('completedTodoList');
-  const todos = getCompletedTodos();
-  document.getElementById('completedCount').textContent = state.todos.filter(t => t.completed && !t.parentId).length;
+  const isLongTerm = todoViewMode === 'longterm';
+  const todos = getCompletedTodos(isLongTerm);
+  document.getElementById('completedCount').textContent = state.todos.filter(t => t.completed && !t.parentId && !!t.isLongTerm === isLongTerm).length;
 
   if (completedCollapsed) {
     container.innerHTML = '';

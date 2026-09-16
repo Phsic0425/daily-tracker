@@ -15,6 +15,7 @@ function addTodo(todo) {
     completedAt: null,
     createdAt: new Date().toISOString(),
     parentId: todo.parentId || null,
+    isLongTerm: !!todo.isLongTerm,
   });
   saveData(state);
 }
@@ -116,7 +117,7 @@ function openSubTodoForm(parentId) {
   document.getElementById('todoTitle').value = '';
   document.getElementById('todoNote').value = '';
   if (parent) {
-    document.getElementById('todoDeadline').value = parent.deadline || today();
+    document.getElementById('todoDeadline').value = parent.deadline || (parent.isLongTerm ? '' : today());
     document.getElementById('todoPriority').value = parent.priority || 'medium';
   } else {
     document.getElementById('todoDeadline').value = today();
@@ -173,7 +174,8 @@ function openTodoEditForm(id) {
     </div>
   `;
   body.querySelector('.todo-edit-title').value = todo.title;
-  body.querySelector('.todo-edit-date').value = todo.deadline || today();
+  body.querySelector('.todo-edit-date').value = todo.deadline || (todo.isLongTerm ? '' : today());
+  body.querySelector('.todo-edit-date').required = !todo.isLongTerm;
   body.querySelector('.todo-edit-priority').value = todo.priority || 'medium';
   body.querySelector('.todo-edit-note').value = todo.note || '';
   body.querySelector('.todo-edit-title').focus();
@@ -253,9 +255,10 @@ function isDueSoon(deadline) {
   return diff >= 0 && diff <= settings.dueSoonDays;
 }
 
-function getActiveTodos(sortMode) {
+function getActiveTodos(sortMode, longTerm) {
   const mode = sortMode || 'deadline';
   const asc = todoSortAsc;
+  const wantLongTerm = !!longTerm;
 
   function cmpDeadline(a, b) {
     const da = a.deadline || '';
@@ -276,7 +279,7 @@ function getActiveTodos(sortMode) {
 
   // 只返回顶层待办（parentId 为 null），子待办在渲染时递归展开
   return state.todos
-    .filter(t => !t.completed && !t.parentId)
+    .filter(t => !t.completed && !t.parentId && !!t.isLongTerm === wantLongTerm)
     .sort((a, b) => {
       if (mode === 'priority') {
         const pc = cmpPriority(a, b);
@@ -293,13 +296,15 @@ function getActiveTodos(sortMode) {
     });
 }
 
-function getCompletedTodos() {
+function getCompletedTodos(longTerm) {
+  const wantLongTerm = !!longTerm;
   return state.todos
-    .filter(t => t.completed && !t.parentId)
+    .filter(t => t.completed && !t.parentId && !!t.isLongTerm === wantLongTerm)
     .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
 }
 
-function getActiveCount() {
+function getActiveCount(longTerm) {
   // 只计算主任务（顶层待办）
-  return state.todos.filter(t => !t.completed && !t.parentId).length;
+  const wantLongTerm = !!longTerm;
+  return state.todos.filter(t => !t.completed && !t.parentId && !!t.isLongTerm === wantLongTerm).length;
 }

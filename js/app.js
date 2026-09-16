@@ -35,6 +35,7 @@ let notificationPermission = 'default';
 let countdownTimer = null;
 let _waitingWorker = null; // 等待激活的新 Service Worker
 let collapsedParents = new Set(); // 折叠的父待办 ID 集合
+let todoViewMode = 'normal'; // 待办视图模式：'normal'=普通待办 | 'longterm'=长期待办
 
 // ---- 全局函数（供 inline onclick 调用）----
 function toggleTemplateManage() {

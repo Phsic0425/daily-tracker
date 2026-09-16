@@ -1791,6 +1791,31 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
 }
 .cal-mode-btn:active { background: var(--primary-bg); }
 
+/* 待办 - 普通/长期切换 */
+.todo-mode {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.todo-mode-btn {
+  flex: 1;
+  padding: 6px 0;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: all var(--transition);
+}
+.todo-mode-btn.active {
+  background: var(--primary-bg);
+  color: var(--primary);
+}
+.todo-mode-btn:active { background: var(--primary-bg); }
+
 /* 日程类型切换（弹窗内） */
 .sched-type {
   display: flex;

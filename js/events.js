@@ -23,6 +23,15 @@ function setupEvents() {
     });
   });
 
+  // ---- 待办视图切换：普通 / 长期 ----
+  document.querySelectorAll('.todo-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      todoViewMode = btn.dataset.mode;
+      closeSubTodoForm();
+      renderTodoView();
+    });
+  });
+
   // ---- 待办排序模式切换 ----
   document.querySelectorAll('.sort-mode-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -140,8 +149,7 @@ function setupEvents() {
     pendingImage = null;
     updateCameraButton();
   });
-  document.getElementById('inputAmount').addEventListener('focus', async () => {
-    if (document.getElementById('inputAmount').value) return;
+  document.getElementById('btnPasteAmount').addEventListener('click', async () => {
     try {
       const text = await navigator.clipboard.readText();
       const match = text.match(/(?:¥|￥)?\s*([\d,]+\.?\d{0,2})/);
@@ -150,9 +158,13 @@ function setupEvents() {
         if (num > 0 && num < 1000000) {
           document.getElementById('inputAmount').value = num;
           showToast('📋 已从剪贴板提取金额: ' + fmtMoney(num));
+          return;
         }
       }
-    } catch(e) {}
+      showToast('剪贴板中没有找到有效金额');
+    } catch(e) {
+      showToast('无法读取剪贴板，请手动输入');
+    }
   });
   document.getElementById('btnCamera').addEventListener('click', () => document.getElementById('inputImage').click());
   document.getElementById('inputImage').addEventListener('change', (e) => {
@@ -241,7 +253,7 @@ function setupEvents() {
 
   // ---- 待办批量删除操作 ----
   document.getElementById('btnTodoSelectAll').addEventListener('click', () => {
-    const list = getActiveTodos(todoSortMode);
+    const list = getActiveTodos(todoSortMode, todoViewMode === 'longterm');
     if (todoBatchSelected.size === list.length) { todoBatchSelected.clear(); }
     else { list.forEach(t => todoBatchSelected.add(t.id)); }
     renderActiveTodos();
@@ -262,7 +274,7 @@ function setupEvents() {
 
   // ---- 已完成待办批量删除操作 ----
   document.getElementById('btnCompletedSelectAll').addEventListener('click', () => {
-    const list = getCompletedTodos();
+    const list = getCompletedTodos(todoViewMode === 'longterm');
     if (completedBatchSelected.size === list.length) { completedBatchSelected.clear(); }
     else { list.forEach(t => completedBatchSelected.add(t.id)); }
     renderCompletedTodos();
@@ -299,16 +311,18 @@ function setupEvents() {
   document.getElementById('todoForm').addEventListener('submit', e => {
     e.preventDefault();
     const title = document.getElementById('todoTitle').value.trim();
-    const deadline = document.getElementById('todoDeadline').value;
+    const isLongTerm = todoViewMode === 'longterm';
+    const deadline = isLongTerm ? '' : document.getElementById('todoDeadline').value;
     const priority = document.getElementById('todoPriority').value;
     const note = document.getElementById('todoNote').value.trim();
     if (!title) { showToast('请输入待办内容'); return; }
-    if (!deadline) { showToast('请选择截止时间'); return; }
+    if (!isLongTerm && !deadline) { showToast('请选择截止时间'); return; }
 
     const form = document.getElementById('todoForm');
     const parentId = form.dataset.parentId || null;
 
-    addTodo({ title, deadline, priority, note, parentId });
+    const parentTodo = parentId ? state.todos.find(t => t.id === parentId) : null;
+    addTodo({ title, deadline, priority, note, parentId, isLongTerm: parentTodo ? !!parentTodo.isLongTerm : isLongTerm });
 
     document.getElementById('todoTitle').value = '';
     document.getElementById('todoNote').value = '';

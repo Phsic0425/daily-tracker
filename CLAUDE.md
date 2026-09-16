@@ -46,7 +46,7 @@ config → utils → storage → account → expense → todo → schedule → c
 ```js
 state = {
   expenses: [{ id, type, amount, category, note, date, image, accountId, createdAt }],
-  todos:    [{ id, title, deadline, priority, note, pinned, order, completed, completedAt, createdAt }],
+  todos:    [{ id, title, deadline, priority, note, pinned, order, completed, completedAt, createdAt, parentId, isLongTerm }],
   templates:[{ id, name, type, category, amount, note }],
   schedules:[{ id, title, date, time, repeatMode, repeatConfig, reminder, color, label, createdAt }],
   accounts: [{ id, name, type, icon, balance, note, createdAt }],
@@ -92,6 +92,7 @@ settings = {
 | `selectedAccountId` | 记账弹窗中单选选中的账户 id（空字符串=未选） |
 | `amountMode` | 记账金额输入方式 `'delta'`（变化量）/ `'final'`（末状态值） |
 | `accountManaging` | 账户管理删除模式开关 |
+| `todoViewMode` | 待办视图 `'normal'`（普通）/ `'longterm'`（长期，无截止日期强制要求，不参与超时/临期提醒） |
 
 ## 关键工具函数签名
 
