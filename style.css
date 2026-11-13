@@ -1116,6 +1116,9 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
   z-index: 23;
   padding: 6px;
   min-width: 140px;
+  max-height: calc(100dvh - 140px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   animation: slideUp 0.2s ease;
 }
 @keyframes slideUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }

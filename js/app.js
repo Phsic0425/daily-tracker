@@ -110,25 +110,11 @@ function init() {
 
   setupEvents();
 
-  // Service Worker 注册 + 自动更新检测
+  // Service Worker 注册
+  // 更新策略：sw.js 里 install 时 skipWaiting 静默接管，页面靠 controllerchange 自动刷新
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').then(function(reg) {
-      // 检测到新版本正在安装
-      reg.addEventListener('updatefound', function() {
-        var newWorker = reg.installing;
-        newWorker.addEventListener('statechange', function() {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            _waitingWorker = newWorker;
-            showUpdateBanner();
-          }
-        });
-      });
-      // 如果已有等待中的 worker
-      if (reg.waiting) {
-        _waitingWorker = reg.waiting;
-        showUpdateBanner();
-      }
-      // 定期检查更新（每小时）
+      // 定期主动检查更新（每小时）
       setInterval(function() { reg.update(); }, 3600000);
     }).catch(function() {});
   }
@@ -198,16 +184,38 @@ function showUpdateBanner() {
       setTimeout(function() {
         if (!reloaded) { reloaded = true; window.location.reload(); }
       }, 300);
+    } else {
+      // skipWaiting 模式下新 SW 已经接管，直接刷新即可
+      window.location.reload();
     }
   });
 }
 
-// SW 消息处理
+// SW 消息处理 & 自动更新
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', function(e) {
     if (e.data && e.data.type === 'UPDATE_READY') {
       showUpdateBanner();
     }
+  });
+
+  // 新 SW 接管页面后自动刷新一次
+  // _hadController 用来区分「首次安装」和「版本更新」——首次安装不该刷新
+  var _hadController = !!navigator.serviceWorker.controller;
+  var _autoReloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    if (!_hadController) {
+      _hadController = true;
+      return;
+    }
+    if (_autoReloading) return;
+    // 用户正在填表单（有弹窗打开）时不打断，改成顶部横幅提示
+    if (document.querySelector('.modal.show, .modal-fullscreen.show')) {
+      showUpdateBanner();
+      return;
+    }
+    _autoReloading = true;
+    window.location.reload();
   });
 }
 

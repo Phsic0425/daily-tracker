@@ -10,7 +10,7 @@
 ```
 index.html              ← 所有 DOM 结构（弹窗、菜单、列表容器）
 style.css               ← 全部样式（移动端优先 + 深色模式）
-sw.js                   ← Service Worker（缓存策略 v2）
+sw.js                   ← Service Worker（网络优先缓存 + skipWaiting 自动接管；版本号见首行 CACHE）
 manifest.json           ← PWA 配置
 
 js/
@@ -256,14 +256,16 @@ renderCountdownView()         ← 倒数日（countdown.js）
 
 ### 部署注意事项
 - 所有路径均为相对路径（`./js/...`），无需适配
-- Service Worker 采用网络优先策略，旧版本清理在 activate 事件中
+- **发版必做**：把 `sw.js` 首行 `CACHE` 版本号 +1，否则浏览器不认为有新版本（SW 字节没变就不触发更新）
+- Service Worker 更新策略：网络优先取文件 + `install` 里 `skipWaiting()` 静默接管 + `activate` 里删旧缓存并 `clients.claim()`；页面侧监听 `controllerchange` 自动 `location.reload()`。首次安装不刷新（用 `_hadController` 区分）；若用户开着弹窗（`.modal.show`）则改为顶部横幅提示，避免清掉正在填的表单
+- 更新有延迟：GitHub Pages 构建 30s~2min，之后 CDN 还会缓存约 10min（`max-age=600`）。push 后别立刻验，急验可在网址后加 `?v=2` 绕过
 - 每台设备 localStorage 独立，互不影响
-- 跨设备迁移数据用「导出/导入」功能（左下角 ⋯ 菜单）
+- 跨设备迁移数据用「导出/导入」JSON 文件（左下角 ⋯ 菜单），或同步码
 
 ## 数据导出/导入
 
-- `exportData()` — 序列化 `state` 为 JSON 文件下载（文件名含日期戳 `daily-tracker-backup-YYYY-MM-DD.json`），含 `expenses/todos/templates/schedules/accounts/countdowns/courseSchedule`
-- `importData(jsonStr)` — 解析 JSON → 校验结构 → 替换 `state` 对应字段 → `saveData()` → 返回结果对象 `{ok, error?, counts?}`
+- `exportData()` — 打包成 JSON 文件下载，文件名 `daily-tracker-backup-YYYY-MM-DD-HHmm.json`。包格式 `{ v:3, exportedAt, expenses, todos, templates, schedules, accounts, countdowns, courseSchedule, settings }`，**含 settings**（自定义分类、同步ID、课表缩放等）；不加缩进，避免带截图的备份体积翻倍。返回 `{ bytes, counts }`
+- `importData(jsonStr)` — 解析 JSON → 校验结构 → 替换 `state` 对应字段 → 若文件带 `settings` 则 `Object.assign` 回 settings 并 `saveSettings` → `saveData()` → 返回 `{ok, error?, settingsRestored?, counts?}`。旧版备份（只有 state、无 settings）仍可导入
 - 云同步（npoint.io）/ 同步码导出导入同样覆盖 `accounts`/`countdowns`/`courseSchedule`（与 `schedules` 走同一套 pack/merge 逻辑）
 - **同步码分两种**：⋯ → 复制/粘贴同步码 = 全模块整体覆盖（`exportSyncCode`/`importSyncCode`）；⋯ → 分模块同步 = 可勾选只导出/导入部分模块（`exportSyncCodeModules`/`previewSyncCodeModules`/`importSyncCodeModules`，模块清单见 `SYNC_MODULES`），两者都是**整体覆盖对应字段，不做合并/去重**——导入会直接替换本设备该模块的数据
 - 入口：左下角 ⋯ 菜单 → 💾 导出数据 / 📥 导入数据

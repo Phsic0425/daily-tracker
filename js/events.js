@@ -704,6 +704,69 @@ function setupEvents() {
       showToast('❌ ' + result.error);
     }
   });
+  // ---- 数据导出 / 导入（JSON 文件）----
+  document.getElementById('btnExportData').addEventListener('click', (e) => {
+    e.stopPropagation();
+    moreMenu.style.display = 'none';
+    try {
+      const info = exportData();
+      const c = info.counts;
+      showToast('💾 已导出：账单 ' + c.expenses + ' · 待办 ' + c.todos + ' · 日程 ' + c.schedules
+        + ' · 倒数日 ' + c.countdowns + '（请到「下载」里查看文件）');
+    } catch (err) {
+      console.error('导出失败:', err);
+      showToast('❌ 导出失败，请重试');
+    }
+  });
+
+  document.getElementById('btnImportData').addEventListener('click', (e) => {
+    e.stopPropagation();
+    moreMenu.style.display = 'none';
+    document.getElementById('importDataFile').click();
+  });
+
+  document.getElementById('importDataFile').addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';   // 允许重复选择同一个文件
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || '');
+      let preview = null;
+      try {
+        preview = JSON.parse(text);
+      } catch (err) {
+        showToast('❌ 不是有效的 JSON 备份文件');
+        return;
+      }
+      if (!preview || typeof preview !== 'object') {
+        showToast('❌ 文件内容不是有效的备份');
+        return;
+      }
+      const cnt = (k) => (Array.isArray(preview[k]) ? preview[k].length : 0);
+      const summary = '账单 ' + cnt('expenses') + ' · 待办 ' + cnt('todos') + ' · 模板 ' + cnt('templates')
+        + '\n日程 ' + cnt('schedules') + ' · 倒数日 ' + cnt('countdowns') + ' · 账户 ' + cnt('accounts');
+      if (!confirm('将用这个文件覆盖本设备的全部数据：\n\n' + summary + '\n\n当前数据会被替换且无法恢复，确定继续？')) return;
+
+      const result = importData(text);
+      if (!result.ok) {
+        showToast('❌ ' + result.error);
+        return;
+      }
+      // 全量刷新所有视图
+      renderExpenseView();
+      renderTodoView();
+      updateTodoBadge();
+      if (typeof renderScheduleView === 'function') renderScheduleView();
+      if (typeof renderCountdownView === 'function') renderCountdownView();
+      const c = result.counts || {};
+      showToast('✅ 已导入：账单 ' + (c.expenses || 0) + ' · 待办 ' + (c.todos || 0)
+        + ' · 日程 ' + (c.schedules || 0) + ' · 倒数日 ' + (c.countdowns || 0));
+    };
+    reader.onerror = () => showToast('❌ 文件读取失败');
+    reader.readAsText(file);
+  });
+
   // 分模块同步入口
   document.getElementById('btnModuleSync').addEventListener('click', (e) => {
     e.stopPropagation();

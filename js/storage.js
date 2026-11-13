@@ -411,19 +411,44 @@ function importSyncCodeModules(code, moduleKeys) {
 }
 
 // ---- 数据导出/导入 ----
+// 导出成一个 JSON 文件：全部业务数据 + 设置（含自定义分类、同步ID、缩放等）
+// 不加缩进，避免带截图的备份文件体积翻倍
 function exportData() {
-  const json = JSON.stringify(state, null, 2);
+  const pack = {
+    v: 3,
+    exportedAt: new Date().toISOString(),
+    expenses: state.expenses || [],
+    todos: state.todos || [],
+    templates: state.templates || [],
+    schedules: state.schedules || [],
+    accounts: state.accounts || [],
+    countdowns: state.countdowns || [],
+    courseSchedule: state.courseSchedule || null,
+    settings: settings
+  };
+  const json = JSON.stringify(pack);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   const now = new Date();
-  const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
+    + '-' + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0');
   a.download = `daily-tracker-backup-${ts}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  return {
+    bytes: json.length,
+    counts: {
+      expenses: pack.expenses.length,
+      todos: pack.todos.length,
+      schedules: pack.schedules.length,
+      countdowns: pack.countdowns.length,
+      accounts: pack.accounts.length
+    }
+  };
 }
 
 function importData(jsonStr) {
@@ -454,9 +479,17 @@ function importData(jsonStr) {
   state.accounts = data.accounts;
   state.countdowns = data.countdowns;
   state.courseSchedule = data.courseSchedule;
+  // 新版备份文件带 settings（自定义分类、同步ID、课表缩放等），旧版没有就跳过
+  var restoredSettings = false;
+  if (data.settings && typeof data.settings === 'object') {
+    Object.assign(settings, data.settings);
+    saveSettings(settings);
+    restoredSettings = true;
+  }
   saveData(state);
   return {
     ok: true,
+    settingsRestored: restoredSettings,
     counts: {
       expenses: data.expenses.length,
       todos: data.todos.length,
