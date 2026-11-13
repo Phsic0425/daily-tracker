@@ -13,8 +13,13 @@ function setupEvents() {
       if (target === 'expense') document.getElementById('tabExpense').classList.add('active');
       else if (target === 'todo') document.getElementById('tabTodo').classList.add('active');
       else if (target === 'schedule') document.getElementById('tabSchedule').classList.add('active');
+      else if (target === 'countdown') document.getElementById('tabCountdown').classList.add('active');
       if (target === 'todo') { renderTodoView(); closeSubTodoForm(); }
       if (target === 'expense') { renderExpenseView(); closeSubTodoForm(); }
+      if (target === 'countdown') {
+        closeSubTodoForm();
+        if (typeof renderCountdownView === 'function') renderCountdownView();
+      }
       if (target === 'schedule') {
         scheduleSelectedDate = today();
         scheduleViewMonth = { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
@@ -89,6 +94,8 @@ function setupEvents() {
       document.getElementById('todoTitle').focus();
     } else if (activeTab && activeTab.dataset.tab === 'schedule') {
       openScheduleModal(scheduleSelectedDate);
+    } else if (activeTab && activeTab.dataset.tab === 'countdown') {
+      if (typeof openCountdownModal === 'function') openCountdownModal();
     } else {
       openExpenseModal();
     }
@@ -139,6 +146,8 @@ function setupEvents() {
     if (e.key === 'Escape') {
       if (document.getElementById('helpModal').classList.contains('show')) closeHelp();
       else if (document.getElementById('scheduleModal').classList.contains('show')) closeScheduleModal();
+      else if (document.getElementById('festivalModal').classList.contains('show')) closeFestivalModal();
+      else if (document.getElementById('countdownModal').classList.contains('show')) closeCountdownModal();
       else closeExpenseModal();
     }
   });
@@ -891,4 +900,13 @@ function setupEvents() {
     if (!opt) return;
     setScheduleColor(opt.dataset.color);
   });
+
+  // ---- 倒数日（实现在 countdown.js，缺文件时不连累其他事件）----
+  if (typeof bindCountdownEvents === 'function') {
+    try {
+      bindCountdownEvents();
+    } catch (e) {
+      console.error('倒数日事件绑定失败:', e);
+    }
+  }
 }

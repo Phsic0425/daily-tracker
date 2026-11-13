@@ -25,6 +25,7 @@ js/
 ├── course.js           ← 课表数据层：parseWeeksText/formatWeeksText、getWeekNumberForDate、setCurrentWeekAnchor、updatePeriods、课程 CRUD、getCoursesForWeek
 ├── calendar.js         ← 月历视图渲染 + 日程弹窗：renderCalendar、renderDayDetail、renderUpcoming、日程弹窗 open/close/save/delete、导出 JSON/图片
 ├── timetable.js        ← 课表视图渲染 + 课程/周数/节次弹窗：renderCourseView、renderCourseGrid、课程弹窗、设置周数弹窗、节次设置弹窗
+├── countdown.js        ← 倒数日：日期计算（cdDaysBetween/cdLunarToSolar/cdNextOccurrence）+ 数据层 + 渲染 + 弹窗 + 节日导入
 ├── templates.js        ← 快捷模板：getTemplates、addTemplate、deleteTemplate、recordFromTemplate
 ├── effects.js          ← 视觉：showToast、triggerConfetti、updateCameraButton、handleImageSelect、showImagePreview、clearPendingConfirm
 ├── help.js             ← 帮助文档：renderHelp、openHelp、closeHelp
@@ -38,7 +39,7 @@ js/
 
 ```
 config → utils → storage → account → expense → todo → schedule → course → calendar → timetable
-  → templates → effects → help → report → ui → events → app
+  → countdown → templates → effects → help → report → ui → events → app
 ```
 
 ## 数据模型
@@ -50,6 +51,16 @@ state = {
   templates:[{ id, name, type, category, amount, note }],
   schedules:[{ id, title, date, time, repeatMode, repeatConfig, reminder, color, label, createdAt }],
   accounts: [{ id, name, type, icon, balance, note, createdAt }],
+  countdowns: [{
+    id, title, icon, color, note,
+    mode: 'once' | 'yearly-solar' | 'yearly-lunar' | 'yearly-rule',
+    direction: 'countdown' | 'countup',   // 倒数 / 累计（纪念日）
+    baseDate: '1998-03-15',               // 基准日：单次=目标日；循环=首次发生日（也用于算「已过去N天」和「第K次」）
+    lunar: { month, day, isLeap, startYear } | null,  // 仅 yearly-lunar，startYear=创建时的农历年
+    rule:  { month, weekday, nth } | null,            // 仅 yearly-rule，weekday 0=周日
+    pinned, festivalKey,                  // festivalKey 用于节日导入去重
+    createdAt
+  }],
   courseSchedule: {
     periods: [{ start, end, name, collapsed }], // 每节课起止时间 "HH:MM"，默认 12 节；collapsed=折叠压缩显示（如午休）
     currentWeek: 1,                 // 锚点：anchorDate 当天是第几周
@@ -93,6 +104,10 @@ settings = {
 | `amountMode` | 记账金额输入方式 `'delta'`（变化量）/ `'final'`（末状态值） |
 | `accountManaging` | 账户管理删除模式开关 |
 | `todoViewMode` | 待办视图 `'normal'`（普通）/ `'longterm'`（长期，无截止日期强制要求，不参与超时/临期提醒） |
+| `cdFormMode` / `cdFormDirection` | 倒数日弹窗当前选中的重复方式 / 显示方向 |
+| `cdFormColor` / `cdFormIcon` | 倒数日弹窗当前选中的颜色 / 图标 |
+| `cdEditingId` | 倒数日弹窗正在编辑的记录 id（null=新建） |
+| `cdFestivalGroup` / `cdFestivalSelected` | 节日导入弹窗的分组筛选 / 已勾选的节日 key 集合 |
 
 ## 关键工具函数签名
 
@@ -124,6 +139,11 @@ renderTodoView()
 renderScheduleView()          ← 按 settings.scheduleViewMode 二选一
   ├── 'month' → renderCalendar() + renderUpcoming()（calendar.js）
   └── 'course' → renderCourseView() → renderCourseGrid()（timetable.js，叠加 getSchedulesForDate()）
+
+renderCountdownView()         ← 倒数日（countdown.js）
+  ├── cdCompute(cd, today)    每条算出 nextDate / remain / passed / key / progress
+  ├── #cdHeroArea  ← cdRenderHero()：排第一的那条大卡片
+  └── #cdList      ← cdRenderItem()：其余按「置顶 → 剩余天数升序」排
 ```
 
 **重要**: 每个 render 函数都有独立 try-catch，一个失败不影响其他。
@@ -178,6 +198,8 @@ renderScheduleView()          ← 按 settings.scheduleViewMode 二选一
 | 账户余额/总资产不对 | `account.js`（applyExpenseToAccount/revertExpenseFromAccount）+ `expense.js` 联动 |
 | 课表课程不显示或周数算错 | `course.js`（getWeekNumberForDate/getCoursesForWeek）+ `timetable.js`（renderCourseGrid） |
 | 课表里日程没叠加显示 | `timetable.js` 是否正确调用 `getSchedulesForDate()` |
+| 倒数日天数不对/农历差一天 | `countdown.js`（`cdDaysBetween` / `cdLunarToSolar` / `cdNextOccurrence`）；先用弹窗里的实时预览验证 |
+| 倒数日按钮点了没反应 | `bindCountdownEvents()` 是否被 `events.js` 末尾调用；它是独立绑定，不会拖累其他事件 |
 
 ## UX 要点
 
@@ -202,6 +224,12 @@ renderScheduleView()          ← 按 settings.scheduleViewMode 二选一
 - **课表周一起始**：课表视图按周一~周日排列，与月历的周日起始惯例不同，两套周计算逻辑（`getMondayOfWeek` vs 月历内部逻辑）互不影响
 - **课表周数锚点**：手动设置一次"某天是第几周"（`setCurrentWeekAnchor`），之后所有周数按该锚点线性推算，不需要每周手动更新
 - **课程虚化不隐藏**：非本周课程仍渲染在时间轴对应位置，只是加 `.dimmed` 降低视觉权重，方便看到整学期课表结构
+- **倒数日四种模式**：`once` 单次 / `yearly-solar` 每年公历 / `yearly-lunar` 每年农历 / `yearly-rule` 某月第N个星期X；前三者覆盖"生日/纪念日/中秋"，`yearly-rule` 专门处理母亲节、感恩节这类浮动节日
+- **倒数日两种方向**：`countdown` 以「还剩N天」为主（副行给「已过去N天 · 第K次」），`countup` 以「已经过去N天」为主（副行给「距下次周年还剩N天」）
+- **倒数日规律**：所有日期计算走 `Date.UTC` 整数天，不碰本地时区；农历「三十」遇 29 天小月自动回退到廿九（除夕靠这条）；公历 2/29 在平年回退到 2/28
+- **倒数日排序**：置顶优先，其次按剩余天数升序，已过期（负数）排最后
+- **节日导入去重**：导入的记录带 `festivalKey`，再次导入同一节日会跳过，弹窗里显示「已导入」且不可勾选
+- **倒数日预览**：弹窗里改动任何字段都会实时算出「下次 X月X日 周X · 农历X · 还剩N天」，避免选错日期
 
 ## 不要做的事
 
@@ -234,9 +262,9 @@ renderScheduleView()          ← 按 settings.scheduleViewMode 二选一
 
 ## 数据导出/导入
 
-- `exportData()` — 序列化 `state` 为 JSON 文件下载（文件名含日期戳 `daily-tracker-backup-YYYY-MM-DD.json`），含 `expenses/todos/templates/schedules/accounts/courseSchedule`
+- `exportData()` — 序列化 `state` 为 JSON 文件下载（文件名含日期戳 `daily-tracker-backup-YYYY-MM-DD.json`），含 `expenses/todos/templates/schedules/accounts/countdowns/courseSchedule`
 - `importData(jsonStr)` — 解析 JSON → 校验结构 → 替换 `state` 对应字段 → `saveData()` → 返回结果对象 `{ok, error?, counts?}`
-- 云同步（npoint.io）/ 同步码导出导入同样覆盖 `accounts`/`courseSchedule`（与 `schedules` 走同一套 pack/merge 逻辑）
+- 云同步（npoint.io）/ 同步码导出导入同样覆盖 `accounts`/`countdowns`/`courseSchedule`（与 `schedules` 走同一套 pack/merge 逻辑）
 - **同步码分两种**：⋯ → 复制/粘贴同步码 = 全模块整体覆盖（`exportSyncCode`/`importSyncCode`）；⋯ → 分模块同步 = 可勾选只导出/导入部分模块（`exportSyncCodeModules`/`previewSyncCodeModules`/`importSyncCodeModules`，模块清单见 `SYNC_MODULES`），两者都是**整体覆盖对应字段，不做合并/去重**——导入会直接替换本设备该模块的数据
 - 入口：左下角 ⋯ 菜单 → 💾 导出数据 / 📥 导入数据
 - 导入后自动调用 `renderExpenseView()` + `renderTodoView()` + `updateTodoBadge()` 刷新界面

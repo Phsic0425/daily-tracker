@@ -7,7 +7,7 @@ function loadData() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
   } catch (e) { /* ignore */ }
-  return { expenses: [], todos: [], templates: [], schedules: [], accounts: [], courseSchedule: null };
+  return { expenses: [], todos: [], templates: [], schedules: [], accounts: [], courseSchedule: null, countdowns: [] };
 }
 
 function saveData(data) {
@@ -30,6 +30,7 @@ function saveData(data) {
       try { renderExpenseView(); } catch(e) {}
       try { renderTodoView(); } catch(e) {}
       try { updateTodoBadge(); } catch(e) {}
+      try { if (typeof renderCountdownView === 'function') renderCountdownView(); } catch(e) {}
     });
   }
 }
@@ -69,6 +70,24 @@ if (!state.courseSchedule.anchorDate) state.courseSchedule.anchorDate = today();
 state.courseSchedule.courses.forEach(c => {
   if (!Array.isArray(c.weeks)) c.weeks = [];
   if (!c.color) c.color = SCHEDULE_COLORS[0];
+});
+
+// 倒数日
+if (!Array.isArray(state.countdowns)) state.countdowns = [];
+state.countdowns.forEach(cd => {
+  if (!cd.mode) cd.mode = 'once';
+  if (!cd.baseDate) cd.baseDate = today();
+  if (cd.direction !== 'countup') cd.direction = 'countdown';
+  if (!cd.icon) cd.icon = '⏳';
+  if (!cd.color) cd.color = '#6366F1';
+  if (typeof cd.pinned !== 'boolean') cd.pinned = false;
+  if (!cd.festivalKey) cd.festivalKey = '';
+  if (cd.mode === 'yearly-lunar' && (!cd.lunar || !cd.lunar.month)) {
+    cd.lunar = { month: 1, day: 1, isLeap: false, startYear: 0 };
+  }
+  if (cd.mode === 'yearly-rule' && (!cd.rule || !cd.rule.month)) {
+    cd.rule = { month: 1, weekday: 0, nth: 1 };
+  }
 });
 
 // ---- 设置 ----
@@ -127,6 +146,7 @@ function _syncData() {
     todos: state.todos,
     templates: state.templates || [],
     schedules: state.schedules || [],
+    countdowns: state.countdowns || [],
     accounts: state.accounts || [],
     courseSchedule: state.courseSchedule || null,
     seq: ++_syncSeq,
@@ -164,6 +184,7 @@ function syncDownload(callback) {
     if (Array.isArray(data.todos)) state.todos = data.todos;
     if (Array.isArray(data.templates)) state.templates = data.templates;
     if (Array.isArray(data.schedules)) state.schedules = data.schedules;
+    if (Array.isArray(data.countdowns)) state.countdowns = data.countdowns;
     if (Array.isArray(data.accounts)) state.accounts = data.accounts;
     if (data.courseSchedule && typeof data.courseSchedule === 'object') state.courseSchedule = data.courseSchedule;
     saveData(state);
@@ -291,6 +312,7 @@ function exportSyncCode() {
     templates: state.templates || [],
     schedules: state.schedules || [],
     accounts: state.accounts || [],
+    countdowns: state.countdowns || [],
     courseSchedule: state.courseSchedule || null,
     settings: settings,
     ts: Date.now()
@@ -309,6 +331,7 @@ function importSyncCode(code) {
     if (Array.isArray(data.todos)) state.todos = data.todos;
     if (Array.isArray(data.templates)) state.templates = data.templates;
     if (Array.isArray(data.schedules)) state.schedules = data.schedules;
+    if (Array.isArray(data.countdowns)) state.countdowns = data.countdowns;
     if (Array.isArray(data.accounts)) state.accounts = data.accounts;
     if (data.courseSchedule && typeof data.courseSchedule === 'object') state.courseSchedule = data.courseSchedule;
     if (data.settings) {
@@ -419,6 +442,7 @@ function importData(jsonStr) {
   if (!Array.isArray(data.templates)) data.templates = [];
   if (!Array.isArray(data.schedules)) data.schedules = [];
   if (!Array.isArray(data.accounts)) data.accounts = [];
+  if (!Array.isArray(data.countdowns)) data.countdowns = [];
   if (!data.courseSchedule || typeof data.courseSchedule !== 'object') {
     data.courseSchedule = { periods: DEFAULT_PERIODS.slice(), currentWeek: 1, anchorDate: today(), courses: [], scaleZones: [] };
   }
@@ -428,6 +452,7 @@ function importData(jsonStr) {
   state.templates = data.templates;
   state.schedules = data.schedules;
   state.accounts = data.accounts;
+  state.countdowns = data.countdowns;
   state.courseSchedule = data.courseSchedule;
   saveData(state);
   return {
@@ -438,6 +463,7 @@ function importData(jsonStr) {
       templates: data.templates.length,
       schedules: data.schedules.length,
       accounts: data.accounts.length,
+      countdowns: data.countdowns.length,
     }
   };
 }

@@ -103,6 +103,11 @@ function init() {
     startCountdownTimer();
   }
 
+  // 倒数日首次渲染（tab 默认隐藏，先把内容算好避免切过去时闪一下）
+  if (typeof renderCountdownView === 'function') {
+    renderCountdownView();
+  }
+
   setupEvents();
 
   // Service Worker 注册 + 自动更新检测

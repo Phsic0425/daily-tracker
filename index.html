@@ -39,6 +39,9 @@
       <button class="tab" data-tab="schedule">
         <span class="tab-icon">📅</span><span>日程</span>
       </button>
+      <button class="tab" data-tab="countdown">
+        <span class="tab-icon">⏳</span><span>倒数</span>
+      </button>
     </nav>
 
     <!-- 主内容 -->
@@ -231,6 +234,26 @@
             <p class="empty-hint">点击日历日期查看日程</p>
           </div>
         </div>
+      </section>
+
+      <!-- ====== 倒数日页面 ====== -->
+      <section class="tab-content" id="tabCountdown">
+        <div class="section" style="margin-bottom:8px">
+          <div class="section-header">
+            <span>⏳ 倒数日</span>
+            <span class="section-count" id="cdCount">0</span>
+            <button class="btn btn-sm btn-tpl-manage" id="btnCdFestival" style="margin-left:auto">📥 导入节日</button>
+            <button class="btn btn-sm btn-primary" id="btnCdAdd">+ 新建</button>
+          </div>
+        </div>
+
+        <!-- 最近的一个（大卡片） -->
+        <div id="cdHeroArea"></div>
+
+        <!-- 其余列表 -->
+        <div class="cd-list" id="cdList"></div>
+
+        <p class="empty-hint" id="cdEmpty">还没有倒数日<br>点右上角「+ 新建」，或「📥 导入节日」一键添加</p>
       </section>
     </main>
 
@@ -493,6 +516,86 @@
       <button class="btn btn-ghost btn-block" id="btnCancelPeriodSet">取消</button>
     </div>
 
+    <!-- 倒数日弹窗 -->
+    <div class="overlay" id="countdownOverlay"></div>
+    <div class="modal" id="countdownModal">
+      <div class="modal-handle"></div>
+      <h3 class="modal-title" id="countdownModalTitle">新建倒数日</h3>
+
+      <input type="text" class="input" id="cdTitle" placeholder="标题，如 妈妈生日 / 结婚纪念日" maxlength="20" style="margin-bottom:12px">
+
+      <div class="setting-label" style="margin-bottom:6px"><span>🎯 重复方式</span></div>
+      <div class="cd-mode-grid" id="cdModeGrid"></div>
+      <p class="cd-mode-hint" id="cdModeHint"></p>
+
+      <div class="setting-label" style="margin-bottom:6px"><span>📅 日期</span></div>
+      <div id="cdSolarDateRow" style="margin-bottom:12px">
+        <input type="date" class="input" id="cdDate" style="width:100%">
+      </div>
+
+      <div id="cdLunarDateRow" style="display:none;margin-bottom:12px">
+        <div class="form-row" style="margin-bottom:6px">
+          <select class="input" id="cdLunarMonth"></select>
+          <select class="input" id="cdLunarDay"></select>
+        </div>
+        <label class="tpl-check-label">
+          <input type="checkbox" id="cdLunarLeap"> 闰月
+        </label>
+      </div>
+
+      <div id="cdRuleRow" style="display:none;margin-bottom:12px">
+        <div class="form-row" style="margin-bottom:0">
+          <select class="input" id="cdRuleMonth"></select>
+          <select class="input" id="cdRuleWeekday"></select>
+          <select class="input" id="cdRuleNth"></select>
+        </div>
+      </div>
+
+      <div class="setting-label" style="margin-bottom:6px"><span>↔️ 显示方式</span></div>
+      <div class="cd-dir-toggle" id="cdDirToggle">
+        <button type="button" class="cd-dir-btn active" data-dir="countdown">⏳ 倒数（还剩多少天）</button>
+        <button type="button" class="cd-dir-btn" data-dir="countup">🎉 累计（已过多少天）</button>
+      </div>
+
+      <div class="setting-label" style="margin-bottom:6px"><span>🎨 颜色</span></div>
+      <div class="color-picker" id="cdColorPicker"></div>
+
+      <div class="setting-label" style="margin-bottom:6px"><span>😀 图标</span></div>
+      <div class="cd-icon-picker" id="cdIconPicker"></div>
+
+      <div class="cd-preview" id="cdPreview"></div>
+
+      <label class="tpl-check-label">
+        <input type="checkbox" id="cdPinned"> 📌 置顶显示
+      </label>
+
+      <input type="text" class="input" id="cdNote" placeholder="备注（选填）" maxlength="50" style="margin-bottom:16px;width:100%">
+
+      <button class="btn btn-primary btn-block" id="btnSaveCountdown">保存</button>
+      <button class="btn btn-block" style="background:#F43F5E;color:#fff;display:none" id="btnDeleteCountdown">删除</button>
+      <button class="btn btn-ghost btn-block" id="btnCancelCountdown">取消</button>
+    </div>
+
+    <!-- 节日导入弹窗 -->
+    <div class="overlay" id="festivalOverlay"></div>
+    <div class="modal" id="festivalModal" style="max-height:88dvh;overflow-y:auto">
+      <div class="modal-handle"></div>
+      <h3 class="modal-title">📥 导入节日</h3>
+      <p class="setting-desc" style="margin-bottom:10px">勾选后一键加入，已经导入过的会自动跳过</p>
+
+      <div class="cd-festival-tabs" id="cdFestivalTabs">
+        <button type="button" class="cd-festival-tab active" data-group="all">全部</button>
+        <button type="button" class="cd-festival-tab" data-group="solar">公历</button>
+        <button type="button" class="cd-festival-tab" data-group="lunar">农历</button>
+        <button type="button" class="cd-festival-tab" data-group="rule">规则日</button>
+      </div>
+
+      <div class="cd-festival-list" id="cdFestivalList"></div>
+
+      <button class="btn btn-primary btn-block" id="btnImportFestivals">导入选中</button>
+      <button class="btn btn-ghost btn-block" id="btnCloseFestival">关闭</button>
+    </div>
+
     <!-- Toast -->
     <div class="toast" id="toast"></div>
 
@@ -581,6 +684,7 @@
   <script src="js/course.js"></script>
   <script src="js/calendar.js"></script>
   <script src="js/timetable.js"></script>
+  <script src="js/countdown.js"></script>
   <script src="js/templates.js"></script>
   <script src="js/effects.js"></script>
   <script src="js/help.js"></script>
