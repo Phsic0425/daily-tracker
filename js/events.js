@@ -360,6 +360,22 @@ function setupEvents() {
       renderActiveTodos();
       return;
     }
+    // 待办 ⇄ 长期待办 一键切换
+    const moveBtn = e.target.closest('[data-action="toggle-longterm"]');
+    if (moveBtn) {
+      clearPendingConfirm();
+      const result = toggleTodoLongTerm(moveBtn.dataset.id);
+      if (result === 'to-longterm') {
+        showToast('🌱 已移入长期待办');
+        renderTodoView();
+      } else if (result === 'to-normal') {
+        showToast('📅 已移回待办（截止日默认今天，点 ✎ 可改）');
+        renderTodoView();
+      } else if (result === 'completed') {
+        showToast('已完成的待办不能切换');
+      }
+      return;
+    }
     // 添加子任务
     const addChildBtn = e.target.closest('[data-action="add-child"]');
     if (addChildBtn) {

@@ -410,6 +410,7 @@ function renderTodoItem(t, depth) {
           <span class="priority-dot ${p.dot}" title="${p.emoji} ${p.label}优先"></span>
           ${dateHtml}
           ${t.completed && t.completedAt ? `<span class="completed-at">· 完成于 ${fmtDateShort(t.completedAt.slice(0, 10))}</span>` : ''}
+          ${!todoBatchDeleting && !t.completed && depth === 0 ? `<button class="todo-move-tag${t.isLongTerm ? ' is-longterm' : ''}" data-action="toggle-longterm" data-id="${t.id}" title="${t.isLongTerm ? '一键转为普通待办（需要截止日期）' : '一键转为长期待办（无需截止日期）'}">${t.isLongTerm ? '📅 转待办' : '🌱 转长期'}</button>` : ''}
         </div>
       </div>
       ${!todoBatchDeleting && !t.completed ? `<button class="todo-edit-btn" data-action="edit-todo" data-id="${t.id}" title="编辑">✎</button>` : ''}

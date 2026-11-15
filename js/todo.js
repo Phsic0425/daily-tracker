@@ -43,6 +43,28 @@ function togglePinTodo(id) {
   saveData(state);
 }
 
+/** 待办 ⇄ 长期待办 一键切换（连带所有子待办一起换归属）
+ *  返回 'to-longterm' | 'to-normal' | 'completed' | null */
+function toggleTodoLongTerm(id) {
+  const todo = state.todos.find(t => t.id === id);
+  if (!todo) return null;
+  if (todo.completed) return 'completed';
+
+  const toLongTerm = !todo.isLongTerm;
+  const ids = new Set([id]);
+  collectDescendantIds(id, ids);
+
+  state.todos.forEach(t => {
+    if (ids.has(t.id)) t.isLongTerm = toLongTerm;
+  });
+
+  // 变回普通待办时必须有截止日期：原来没有就给今天兜底（可再点 ✎ 改）
+  if (!toLongTerm && !todo.deadline) todo.deadline = today();
+
+  saveData(state);
+  return toLongTerm ? 'to-longterm' : 'to-normal';
+}
+
 function deleteTodo(id) {
   // 同时删除所有子待办
   const idsToDelete = new Set([id]);

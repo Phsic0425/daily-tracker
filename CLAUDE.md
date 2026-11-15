@@ -20,7 +20,7 @@ js/
 ├── storage.js          ← 数据层：loadData、saveData、exportData、importData、loadSettings、saveSettings、云同步、全局变量 `state` + `settings`
 ├── account.js          ← 账户 CRUD：getAccounts、getAccountById、getTotalAssets、addAccount、updateAccount、deleteAccount、adjustAccountBalance、applyExpenseToAccount、revertExpenseFromAccount
 ├── expense.js          ← 记账 CRUD：addExpense、deleteExpense、getMonthExpenses、getMonthSummary、getCategoryBreakdown（记账时联动账户余额）
-├── todo.js             ← 待办 CRUD + 排序：addTodo、toggleTodo、deleteTodo、getActiveTodos、getCompletedTodos、getActiveCount、isOverdue、isDueSoon
+├── todo.js             ← 待办 CRUD + 排序：addTodo、toggleTodo、deleteTodo、toggleTodoLongTerm、getActiveTodos、getCompletedTodos、getActiveCount、isOverdue、isDueSoon
 ├── schedule.js         ← 日程 CRUD + 重复规则展开：addSchedule/updateSchedule/deleteSchedule、expandRepeats 系列、getSchedulesForDate、getScheduledDatesInMonth、checkAndNotify（提醒通知）
 ├── course.js           ← 课表数据层：parseWeeksText/formatWeeksText、getWeekNumberForDate、setCurrentWeekAnchor、updatePeriods、课程 CRUD、getCoursesForWeek
 ├── calendar.js         ← 月历视图渲染 + 日程弹窗：renderCalendar、renderDayDetail、renderUpcoming、日程弹窗 open/close/save/delete、导出 JSON/图片
@@ -153,7 +153,7 @@ renderCountdownView()         ← 倒数日（countdown.js）
 ```
 #expenseList click → [data-action] 路由到 batch-check / preview-img / delete-expense
 #templateList click → [data-action="record-tpl"] 路由到 record/delete
-#activeTodoList click → [data-action] 路由到 todo-batch-check / pin-todo / toggle-todo / delete-todo
+#activeTodoList click → [data-action] 路由到 todo-batch-check / pin-todo / toggle-longterm / toggle-todo / delete-todo
 #completedTodoList click → [data-action] 同上 + completed-batch-check
 #accountList click → #btnAddAccount 打开新增弹窗 / [data-action="edit-account"]（受 accountManaging 控制）
 #accountChipSelect click → 单选切换 selectedAccountId，重置 amountMode 为 'delta'
@@ -175,6 +175,7 @@ renderCountdownView()         ← 倒数日（countdown.js）
 | `.todo-item.overdue` | `deadline < today()` | 红色左边框 |
 | `.todo-item.due-soon` | `today() ≤ deadline ≤ today()+dueSoonDays` | 黄色左边框 |
 | `.todo-note` | todo 有备注 | 灰色小字，标题下方 |
+| `.todo-move-tag` | 顶层未完成待办 | 元信息行右侧小圆角标签，普通待办显示「🌱 转长期」，长期待办显示「📅 转待办」（`.is-longterm` 时高亮） |
 | `.modal-fullscreen` | 报表打开 | 全屏模态，从底部滑入 |
 | `.report-chart` | 报表渲染后 | Canvas 图表容器 |
 | `.cat-tag` / `.cat-tag-del` | 设置中分类管理 | 分类标签 + 删除按钮 |
@@ -209,6 +210,7 @@ renderCountdownView()         ← 倒数日（countdown.js）
   - deadline 模式：pinned 无条件置顶
 - 待办时间状态：超时=红色左边框，临期=黄色左边框（阈值在设置中配置，默认3天）
 - 待办备注：标题下方灰色小字
+- **待办 ⇄ 长期待办 一键互转**：顶层未完成待办卡片里点「🌱 转长期」/「📅 转待办」即可切换 `isLongTerm`，`toggleTodoLongTerm(id)` 会级联所有子待办一起换归属；转回普通时若没有截止日期自动补今天（可再点 ✎ 修改）；已完成的待办不显示该按钮，子待办也不显示（跟随父待办批量换）
 - 账单批量删除：toggleBatchDelete() 全局函数
 - 模板管理：toggleTemplateManage() 全局函数，toast提示+红色横幅持续显示，点击模板直接删除
 - 模板记账：点击模板自动以**当天日期**记录，无时间路径依赖
