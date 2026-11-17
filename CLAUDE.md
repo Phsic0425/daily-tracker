@@ -175,7 +175,7 @@ renderCountdownView()         ← 倒数日（countdown.js）
 | `.todo-item.overdue` | `deadline < today()` | 红色左边框 |
 | `.todo-item.due-soon` | `today() ≤ deadline ≤ today()+dueSoonDays` | 黄色左边框 |
 | `.todo-note` | todo 有备注 | 灰色小字，标题下方 |
-| `.todo-move-tag` | 顶层未完成待办 | 元信息行右侧小圆角标签，普通待办显示「🌱 转长期」，长期待办显示「📅 转待办」（`.is-longterm` 时高亮） |
+| `.todo-move-btn` | 顶层未完成待办 | 右侧按钮排第 1 个（✎ `+` 📌 🗑 之前），24×24 与其他图标按钮同尺寸；默认 `opacity:0`（同 `.todo-add-child`），`.todo-item:hover/:active` 或自身 `:focus-visible` 时显现；普通待办显示 🌱（转长期），长期待办显示 📅（转回普通，`.is-longterm`） |
 | `.modal-fullscreen` | 报表打开 | 全屏模态，从底部滑入 |
 | `.report-chart` | 报表渲染后 | Canvas 图表容器 |
 | `.cat-tag` / `.cat-tag-del` | 设置中分类管理 | 分类标签 + 删除按钮 |
@@ -210,7 +210,7 @@ renderCountdownView()         ← 倒数日（countdown.js）
   - deadline 模式：pinned 无条件置顶
 - 待办时间状态：超时=红色左边框，临期=黄色左边框（阈值在设置中配置，默认3天）
 - 待办备注：标题下方灰色小字
-- **待办 ⇄ 长期待办 一键互转**：顶层未完成待办卡片里点「🌱 转长期」/「📅 转待办」即可切换 `isLongTerm`，`toggleTodoLongTerm(id)` 会级联所有子待办一起换归属；转回普通时若没有截止日期自动补今天（可再点 ✎ 修改）；已完成的待办不显示该按钮，子待办也不显示（跟随父待办批量换）
+- **待办 ⇄ 长期待办 一键互转**：顶层未完成待办卡片右侧的 🌱 / 📅 图标按钮（排在 ✎ 之前，与其它图标按钮同尺寸、同样平时隐藏）可切换 `isLongTerm`；`toggleTodoLongTerm(id)` 会级联所有子待办一起换归属；转回普通时若没有截止日期自动补今天（可再点 ✎ 修改）；已完成的待办不显示该按钮，子待办也不显示（跟随父待办批量换）
 - 账单批量删除：toggleBatchDelete() 全局函数
 - 模板管理：toggleTemplateManage() 全局函数，toast提示+红色横幅持续显示，点击模板直接删除
 - 模板记账：点击模板自动以**当天日期**记录，无时间路径依赖

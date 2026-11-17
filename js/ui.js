@@ -410,9 +410,9 @@ function renderTodoItem(t, depth) {
           <span class="priority-dot ${p.dot}" title="${p.emoji} ${p.label}优先"></span>
           ${dateHtml}
           ${t.completed && t.completedAt ? `<span class="completed-at">· 完成于 ${fmtDateShort(t.completedAt.slice(0, 10))}</span>` : ''}
-          ${!todoBatchDeleting && !t.completed && depth === 0 ? `<button class="todo-move-tag${t.isLongTerm ? ' is-longterm' : ''}" data-action="toggle-longterm" data-id="${t.id}" title="${t.isLongTerm ? '一键转为普通待办（需要截止日期）' : '一键转为长期待办（无需截止日期）'}">${t.isLongTerm ? '📅 转待办' : '🌱 转长期'}</button>` : ''}
         </div>
       </div>
+      ${!todoBatchDeleting && !t.completed && depth === 0 ? `<button class="todo-move-btn${t.isLongTerm ? ' is-longterm' : ''}" data-action="toggle-longterm" data-id="${t.id}" title="${t.isLongTerm ? '转为普通待办' : '转为长期待办'}">${t.isLongTerm ? '📅' : '🌱'}</button>` : ''}
       ${!todoBatchDeleting && !t.completed ? `<button class="todo-edit-btn" data-action="edit-todo" data-id="${t.id}" title="编辑">✎</button>` : ''}
       ${!todoBatchDeleting && !t.completed ? `<button class="todo-add-child" data-action="add-child" data-id="${t.id}" title="添加子任务">+</button>` : ''}
       ${!todoBatchDeleting && !t.completed ? `<button class="todo-pin${t.pinned ? ' pinned' : ''}" data-action="pin-todo" data-id="${t.id}" title="${t.pinned ? '取消置顶' : '置顶'}"${depth > 0 ? ' style="visibility:hidden"' : ''}>📌</button>` : ''}

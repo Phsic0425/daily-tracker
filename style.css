@@ -725,32 +725,20 @@ input[type="date"]::-webkit-inner-spin-button { display: none; }
 .todo-item:hover .todo-edit-btn,
 .todo-item:active .todo-edit-btn { opacity: 1; }
 
-/* 待办 ⇄ 长期待办 一键切换 */
-.todo-move-tag {
-  margin-left: auto;
-  padding: 1px 8px;
-  border-radius: 999px;
-  font-size: 0.68rem;
-  line-height: 1.6;
-  color: var(--text-muted);
-  background: var(--bg);
-  border: 1px solid transparent;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
+/* 待办 ⇄ 长期待办 一键切换（与 ✎ / + / 📌 / 🗑 同尺寸，平时隐藏，悬停/按压时显现） */
+.todo-move-btn {
+  width: 24px; height: 24px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition), background var(--transition);
   flex-shrink: 0;
-  white-space: nowrap;
-  transition: color var(--transition), background var(--transition), border-color var(--transition);
 }
-.todo-move-tag:hover {
-  color: var(--primary);
-  border-color: var(--primary);
-}
-.todo-move-tag:active { background: var(--primary-bg); }
-.todo-move-tag.is-longterm {
-  color: var(--primary);
-  background: var(--primary-bg);
-}
+.todo-item:hover .todo-move-btn,
+.todo-item:active .todo-move-btn,
+.todo-move-btn:focus-visible { opacity: 1; }
+.todo-move-btn:active { background: var(--primary-bg); }
 
 /* 待办内联编辑 */
 .todo-edit-title, .todo-edit-note {
